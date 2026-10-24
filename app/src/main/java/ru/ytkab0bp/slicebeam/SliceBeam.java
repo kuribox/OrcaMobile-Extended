@@ -22,6 +22,7 @@ import ru.ytkab0bp.slicebeam.boot.BeamServerDataTask;
 import ru.ytkab0bp.slicebeam.boot.CheckUpdateJsonTask;
 import ru.ytkab0bp.slicebeam.boot.ClearModelCacheTask;
 import ru.ytkab0bp.slicebeam.boot.CloudInitTask;
+import ru.ytkab0bp.slicebeam.utils.AppLocale;
 import ru.ytkab0bp.slicebeam.boot.EventBusTask;
 import ru.ytkab0bp.slicebeam.boot.LoadSlic3rConfigTask;
 import ru.ytkab0bp.slicebeam.boot.PrefsTask;
@@ -81,6 +82,7 @@ public class SliceBeam extends Application {
     public void onCreate() {
         super.onCreate();
         INSTANCE = this;
+        AppLocale.applyOnStartup(this);
         AppBoot.run(Arrays.asList(
                 new EventBusTask(),
                 new PrefsTask(),

@@ -111,6 +111,12 @@ import ru.ytkab0bp.slicebeam.view.MiniColorView;
 import ru.ytkab0bp.slicebeam.view.TextColorImageSpan;
 
 public class SetupActivity extends AppCompatActivity {
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(ru.ytkab0bp.slicebeam.utils.AppLocale.wrap(newBase));
+    }
+
     public final static String EXTRA_ABOUT = "about";
     public final static String EXTRA_BOOSTY_ONLY = "boosty_only";
     public final static String EXTRA_CLOUD_PROFILE = "cloud_profile";

@@ -61,6 +61,7 @@ import ru.ytkab0bp.slicebeam.events.NeedDismissAIGeneratorMenu;
 import ru.ytkab0bp.slicebeam.events.NeedDismissSnackbarEvent;
 import ru.ytkab0bp.slicebeam.events.NeedSnackbarEvent;
 import ru.ytkab0bp.slicebeam.events.ObjectsListChangedEvent;
+import ru.ytkab0bp.slicebeam.components.bed_menu.SliceMenu;
 import ru.ytkab0bp.slicebeam.fragment.BedFragment;
 import ru.ytkab0bp.slicebeam.navigation.Fragment;
 import ru.ytkab0bp.slicebeam.navigation.MobileNavigationDelegate;
@@ -77,6 +78,12 @@ import ru.ytkab0bp.slicebeam.utils.ViewUtils;
 import ru.ytkab0bp.slicebeam.view.SnackbarsLayout;
 
 public class MainActivity extends AppCompatActivity {
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(ru.ytkab0bp.slicebeam.utils.AppLocale.wrap(newBase));
+    }
+
     // Activity result
     public final static int REQUEST_CODE_OPEN_FILE = 1, REQUEST_CODE_EXPORT_GCODE = 2,
                             REQUEST_CODE_IMPORT_PROFILES = 3, REQUEST_CODE_EXPORT_PROFILES = 4,
@@ -255,8 +262,12 @@ public class MainActivity extends AppCompatActivity {
                 }
             } else if (requestCode == MainActivity.REQUEST_CODE_EXPORT_GCODE) {
                 try {
+                    File source = SliceMenu.consumePendingExportFile();
+                    if (source == null || !source.isFile()) {
+                        source = BedFragment.getTempGCodePath();
+                    }
                     OutputStream out = getContentResolver().openOutputStream(data.getData());
-                    InputStream in = new FileInputStream(BedFragment.getTempGCodePath());
+                    InputStream in = new FileInputStream(source);
                     byte[] buffer = new byte[10240];
                     int c;
                     while ((c = in.read(buffer)) != -1) {

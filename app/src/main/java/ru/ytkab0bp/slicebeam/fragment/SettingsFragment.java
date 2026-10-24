@@ -32,6 +32,7 @@ import ru.ytkab0bp.slicebeam.events.CloudUserInfoUpdatedEvent;
 import ru.ytkab0bp.slicebeam.recycler.PreferenceItem;
 import ru.ytkab0bp.slicebeam.theme.BeamTheme;
 import ru.ytkab0bp.slicebeam.theme.ThemesRepo;
+import ru.ytkab0bp.slicebeam.utils.AppLocale;
 import ru.ytkab0bp.slicebeam.utils.Prefs;
 
 public class SettingsFragment extends ProfileListFragment {
@@ -41,6 +42,16 @@ public class SettingsFragment extends ProfileListFragment {
         super.onViewCreated(v);
         dropdownView.setVisibility(View.GONE);
         ((View) saveButton.getParent()).setVisibility(View.GONE);
+    }
+
+
+    private String currentLanguageName() {
+        String tag = AppLocale.getLanguageTag(getContext());
+        if (tag == null || tag.isEmpty()) {
+            return getContext().getString(R.string.SettingsLanguageSystem);
+        }
+        String name = AppLocale.displayName(tag);
+        return name != null ? name : tag;
     }
 
     @Override
@@ -90,6 +101,31 @@ public class SettingsFragment extends ProfileListFragment {
                             })
                             .show();
                 })),
+                new OptionElement(new PreferenceItem()
+                        .setTitle(getContext().getString(R.string.SettingsLanguage))
+                        .setSubtitle(getContext().getString(R.string.SettingsLanguageDescription))
+                        .setValueProvider(this::currentLanguageName)
+                        .setOnClickListener(v -> {
+                            final String[] tags = {AppLocale.SYSTEM, AppLocale.ENGLISH, AppLocale.SPANISH, AppLocale.RUSSIAN};
+                            final String[] items = {
+                                    getContext().getString(R.string.SettingsLanguageSystem),
+                                    "English",
+                                    "Español",
+                                    "Русский"
+                            };
+                            String current = AppLocale.getLanguageTag(getContext());
+                            int selected = 0;
+                            for (int i = 0; i < tags.length; i++) {
+                                if (tags[i].equals(current)) selected = i;
+                            }
+                            new BeamAlertDialogBuilder(getContext())
+                                    .setTitle(R.string.SettingsLanguage)
+                                    .setSingleChoiceItems(items, selected, (dialog, which) -> {
+                                        dialog.dismiss();
+                                        AppLocale.setLanguage(getContext(), tags[which]);
+                                    })
+                                    .show();
+                        })),
                 new OptionElement(new PreferenceItem().setTitle(getContext().getString(R.string.SettingsInterfaceColor)).setValueProvider(() -> "#" + String.format("%08X", Prefs.getAccentColor())).setOnClickListener(v -> {
                     new BeamColorPickerPopUp(getContext())
                             .setDialogTitle(getContext().getString(R.string.SettingsInterfaceColor))

@@ -22,6 +22,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
+import androidx.core.widget.TextViewCompat;
 import androidx.dynamicanimation.animation.FloatValueHolder;
 import androidx.dynamicanimation.animation.SpringAnimation;
 import androidx.dynamicanimation.animation.SpringForce;
@@ -104,7 +105,7 @@ public class BedMenuItem extends SimpleRecyclerItem<BedMenuItem.BedMenuItemHolde
         private final static float OUT_BOUND = 0.1f;
 
         private ImageView icon;
-        private TextView title;
+        private androidx.appcompat.widget.AppCompatTextView title;
 
         private Paint accentPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private Paint bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -126,7 +127,8 @@ public class BedMenuItem extends SimpleRecyclerItem<BedMenuItem.BedMenuItemHolde
             icon = new ImageView(context);
             addView(icon, new LinearLayout.LayoutParams(ViewUtils.dp(24), ViewUtils.dp(24)));
 
-            title = new TextView(context);
+            // AppCompatTextView: TextViewCompat autosize is a no-op on plain TextView before API 26.
+            title = new androidx.appcompat.widget.AppCompatTextView(context);
             title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9.5f);
             title.setTypeface(ViewUtils.getTypeface(ViewUtils.ROBOTO_MEDIUM));
             title.setGravity(Gravity.CENTER);
@@ -241,6 +243,12 @@ public class BedMenuItem extends SimpleRecyclerItem<BedMenuItem.BedMenuItemHolde
             title.setMaxLines(item.isSingleLine ? 1 : 2);
             title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, item.titleTextSizeDp);
             title.setText(item.titleRes);
+            // Long translations (Spanish is ~25% wider than English) would otherwise be clipped
+            // by the fixed tile width: shrink instead of cutting the label.
+            TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(title,
+                    Math.max(6, Math.round(item.titleTextSizeDp) - 3),
+                    Math.max(7, Math.round(item.titleTextSizeDp)),
+                    1, TypedValue.COMPLEX_UNIT_DIP);
             icon.setImageResource(item.iconRes);
             checkedProgress = item.isCheckable && item.isChecked ? 1 : 0;
             onApplyTheme();

@@ -23,6 +23,12 @@ import ru.ytkab0bp.slicebeam.utils.ViewUtils;
 import ru.ytkab0bp.slicebeam.view.BeamButton;
 
 public class SafeStartActivity extends Activity {
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(ru.ytkab0bp.slicebeam.utils.AppLocale.wrap(newBase));
+    }
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

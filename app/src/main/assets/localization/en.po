@@ -27223,3 +27223,9 @@ msgstr ""
 #: ../src/richtext/richtextbulletspage.cpp:288
 msgid "~"
 msgstr ""
+
+msgid "Serial number"
+msgstr "Serial number"
+
+msgid "Access code"
+msgstr "Access code"
