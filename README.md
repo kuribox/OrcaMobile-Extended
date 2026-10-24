@@ -1,21 +1,30 @@
-# OrcaSlicer Mobile
+# OrcaSlicer Mobile — Flashforge Edition
 
-Please consider donating.
+**Fork of [CodeMasterCody3D/OrcaSlicer-Mobile](https://github.com/CodeMasterCody3D/OrcaSlicer-Mobile) with Flashforge printer support, Spanish translation, and `.gcode.3mf` export.**
+
+Please consider donating to the upstream maintainer:
 
 [Donate to OrcaSlicer Mobile for Android Via PayPal](https://www.paypal.com/donate/?business=E37Z2QEXT7AQW&no_recurring=0&item_name=I+have+built+orcaslicer+mobile+for+Android.+I+need+your+help+to+keep+paying+for+my+ai+tools+to+keep+providing+bug+fixes.+Thanks&currency_code=USD)
-
 
 [Donate to OrcaSlicer Mobile for Android Via Patreon](https://www.patreon.com/cw/CodeMasterCody3D)
 
 [Donate to OrcaSlicer Mobile for Android Via Cash app](https://cash.app/$codyddixon)
 
-
+---
 
 A 3D printing slicer for Android, powered by the real **OrcaSlicer** engine.
 
 OrcaSlicer Mobile takes the excellent Android slicer shell from [Slice Beam](https://github.com/utkabobr/SliceBeam) and replaces its slicing core with a full port of [OrcaSlicer](https://github.com/SoftFever/OrcaSlicer)'s `libslic3r` — so the G-code you slice on your phone comes from the same engine you use on the desktop.
 
-## Features
+## Features (added in this fork)
+
+- **Flashforge printer support** — Native HTTP API (port 8898) for Adventurer 5M / 5M Pro / AD5X. Configure *Serial Number* and *Access Code* in the printer profile, then use "Send to printer" / "Send and print" from the slice menu.
+- **Spanish translation** — Full UI in Spanish (es), based on OrcaSlicer's official `OrcaSlicer_es.po` and translated app strings. Selectable in-app from **App → Language** (System / English / Español / Русский).
+- **Print info panel with real values** — Scrollable, height-capped panel that lists each extrusion role and shows the numeric range (min – max · average) of the active color scheme, computed from the G-code.
+- **`.gcode.3mf` export** — Export sliced output as a standard 3MF package containing G-code, metadata, and preview thumbnails. Compatible with Flashforge, Bambu Lab, Qidi, and other printers that accept `.gcode.3mf`.
+- **Extended host types** — Printer profile `host_type` enum now exposes all types defined by OrcaSlicer (OctoPrint, Moonraker, Flashforge, Duet, PrusaLink, etc.).
+
+## Base features (from upstream)
 
 - **Full OrcaSlicer slicing engine** running natively on-device: Arachne wall generator, tree supports, seam control, adaptive layers, and the rest of the Orca feature set
 - **OrcaSlicer profile import** — load `.orca_printer` / `.orca_filament` config bundles, including profile inheritance resolution and automatic download of vendor base profiles
@@ -34,25 +43,176 @@ Requirements: Android 5.0+, 64-bit ARM device (arm64-v8a).
 ## Build from source
 
 ```bash
-git clone https://github.com/CodeMasterCody3D/OrcaSlicer-Mobile.git
-cd OrcaSlicer-Mobile
-./gradlew assembleDebug
+git clone https://github.com/kuribox/OrcaSlicer-Mobile-flashforge.git
+cd OrcaSlicer-Mobile-flashforge
+git submodule update --init --recursive
 ```
 
 - Android SDK 35, NDK `23.1.7779620`
 - The native engine (libslic3r + dependencies) builds via CMake on the first build — expect it to take a while
 - Prebuilt native dependencies not stored in git (Boost, oneTBB, OCCT, GMP/MPFR) are expected under `app/src/main/jniImports/` and `app/src/main/occt/`
+  - Use `scripts/build_all_deps_android_fixed.sh` to compile them (several hours), or copy prebuilt libraries from a compatible build
 - The output APK lands in `app/build/outputs/apk/debug/`
+
+### Fast path: build the Java layer against the upstream engine
+
+All changes in this fork live in Java (`SliceMenu`, `ProfileListFragment`, `GCode3mfPackager`, resources).
+You can therefore assemble an APK without rebuilding the C++ engine, by reusing the native libraries
+published in the upstream `0.4.6` APK:
+
+```bash
+# 1. Fetch an upstream release APK (same versionName as this tree)
+mkdir -p vendor/upstream-apk
+curl -L -o vendor/upstream-apk/OrcaSlicerMobile_0.4.6.apk \
+  https://github.com/CodeMasterCody3D/OrcaSlicer-Mobile/releases/download/0.4.6/OrcaSlicerMobile_6fc2e14b9a.apk
+
+# 2. Extract the arm64 libraries where the prebuilt path expects them
+rm -rf app/src/prebuiltNative/jniLibs
+python3 - <<'PY'
+from pathlib import Path
+from zipfile import ZipFile
+out = Path("app/src/prebuiltNative/jniLibs/arm64-v8a"); out.mkdir(parents=True, exist_ok=True)
+with ZipFile("vendor/upstream-apk/OrcaSlicerMobile_0.4.6.apk") as z:
+    for n in z.namelist():
+        if n.startswith("lib/arm64-v8a/") and n.endswith(".so"):
+            (out / Path(n).name).write_bytes(z.read(n))
+PY
+
+# 3. Assemble
+./gradlew assembleDebug -PusePrebuiltNative=true
+```
+
+`-PusePrebuiltNative=true` skips CMake and packages `src/prebuiltNative/jniLibs` exclusively
+(the Gradle config swaps the `jniLibs.srcDirs` instead of adding to it, to avoid duplicate-entry failures).
+
+Verify the JNI contract holds for the reused `.so` before trusting the result:
+every `static native` in `slic3r/Native.java` must exist as a `Java_ru_ytkab0bp_slicebeam_slic3r_Native_*`
+symbol in `libslic3r.so` (117/117 at the time of writing).
 
 Note: the Java package path remains `ru.ytkab0bp.slicebeam` for now because native JNI method names are tied to it; the `applicationId` is `com.codemastercody3d.orcaslicermobile`.
 
+## Flashforge setup
+
+1. Open the printer profile → **Physical Printer** tab.
+2. Set **Host type** = `Flashforge`.
+3. Enter the printer's IP address in **Print host** (e.g., `192.168.1.42`).
+4. Enter the printer's **Serial number** (network info screen of the printer).
+5. Enter the printer's **Access code** (same screen).
+6. Tap **Test connection** to verify the printer answers (POST `/detail` on port 8898).
+7. After slicing, use **Send** or **Send and print** from the slice menu.
+
+The app uses Flashforge's local HTTP API (port 8898) — no internet required. The sliced file is uploaded as `.gcode.3mf` (metadata + G-code + embedded thumbnails).
+
+**Test connection** works for every host type: OctoPrint/Klipper (`/api/version`), Moonraker (`:7125/server/info`) and Flashforge (`:8898/detail`).
+
+## Spanish translation
+
+The app detects the system language. If the device is set to Spanish, all menus, settings, and slicer strings appear in Spanish. The translation combines:
+- OrcaSlicer's official `localization/i18n/es/OrcaSlicer_es.po` (slicer engine strings)
+- `res/values-es/strings.xml` (app-specific UI strings)
+
+### Changing the language inside the app
+
+**App → Language** offers *System / English / Español / Русский*. The choice is stored in the app
+preferences (`app_language`), applies to both layers at once — Android resources via a per-locale
+`Context` in `attachBaseContext`, and the OrcaSlicer `.po` strings via the default `Locale` — and the
+current screen is recreated so everything re-resolves without restarting the app.
+
+## Print info panel
+
+After slicing, the **Info** entry in the bed menu lists every extrusion role with its time, filament
+length and weight, and lets you toggle each one. The panel is scrollable and is capped to part of the
+screen so the model stays visible while you switch color scheme.
+
+Above the role list, a **color legend** explains what each color means. For the value-based schemes
+(speed, flow, temperature, …) it draws the exact 11-color palette libvgcode renders and labels the ends
+with the measured minimum and maximum plus the average, so a color can be read back as a value; the
+layer-time-logarithmic scheme is marked as such. For line type and filament the colors are categorical,
+so the legend names them instead: each row of the list below carries its color swatch.
+
+The *Values* block shows the real numbers behind the active color scheme
+(min – max · average): layer height (mm), line width (mm), speed (mm/s), volumetric flow (mm³/s),
+temperature (°C), fan speed (%) and layer time (s). `ViewLegend` is a Java port of libvgcode's
+`ColorRange` (palette + linear/logarithmic interpolation) verified against the C++ implementation. They come from `GCodeStats`, a single pass over the
+sliced G-code that derives speed from the `F` values, flow and effective line width from the extruded
+volume against segment length, and layer heights from the `Z` steps. Nothing is invented: if the file
+carries no measurable moves for a metric the row reads *No values*.
+
+## Exporting and sharing
+
+After slicing, the slice menu has two actions — **Export** and **Share**. Both ask which format to produce:
+
+- **G-code only (.gcode)** — plain G-code, as before.
+- **Print package (.gcode.3mf)** — standard 3MF package with the G-code plus metadata and preview, containing:
+  - `Metadata/plate_1.gcode` — the sliced G-code
+  - `Metadata/slice_info.config` — plate summary (prediction seconds, weight, per-filament `used_m` / `used_g`)
+  - `Metadata/plate_1.json`, `Metadata/project_settings.config`, `Metadata/model_settings.config`
+  - `Metadata/plate_1.png` (+ `plate_no_light` / `top` / `pick`) — preview taken from the thumbnails embedded in the G-code
+  - `3D/3dmodel.model`, `[Content_Types].xml`, `_rels/.rels`, `Metadata/_rels/model_settings.config.rels`
+
+Packaging runs on a background thread (it parses the whole G-code) and is self-checked before leaving the app.
+
+## Changelog
+
+All notable changes of this fork. Dates are local (Europe/Madrid).
+
+### 0.5.0 — 2026-10-24 (first fork release)
+
+**Flashforge printers**
+- `host_type` is no longer hardcoded to OctoPrint: the printer profile lists every type OrcaSlicer
+  defines (OctoPrint, Moonraker, Flashforge, Duet, PrusaLink, …), translated from the engine's own
+  enum labels.
+- Native Flashforge HTTP API on port **8898** for Adventurer 5M / 5M Pro / AD5X: *Send* and
+  *Send and print*, with `serialNumber`, `checkCode`, `fileSize`, `printNow`, `levelingBeforePrint`,
+  `gcodeToolCnt` and `materialMappings` headers.
+- Printer profile gained a *Physical printer* section (host type, host, API key, **Serial number**,
+  **Access code**) and a **Test connection** button.
+- `PrintHostTester` probes each protocol properly: `POST /detail` on Flashforge, `GET /api/version`
+  with `X-Api-Key` on OctoPrint/Klipper, `GET :7125/server/info` on Moonraker.
+
+**`.gcode.3mf` export**
+- `GCode3mfPackager` builds a real OPC/3MF package — `Metadata/plate_1.gcode`,
+  `slice_info.config`, `project_settings.config`, `model_settings.config`, `plate_1.json`, plate
+  thumbnail taken from the G-code and `3D/3dmodel.model` — instead of renaming the raw G-code.
+- **Export** and **Share** both ask which format to produce (G-code or 3MF package), like desktop
+  OrcaSlicer.
+- Fixed `slice_info.config` units: weight in grams, prediction in seconds (was grams × 1000).
+
+**Spanish**
+- Full Spanish UI: `res/values-es/` plus OrcaSlicer's official `OrcaSlicer_es.po` for engine
+  strings.
+- In-app language picker: **App → Language** (System / English / Español / Русский), applied to both
+  resource and `.po` layers without restarting.
+- Bed menu labels use `AppCompatTextView` auto-sizing so long translations are not clipped.
+
+**Print info panel**
+- Scrollable and height-capped, so the model stays visible while switching color scheme.
+- Color legend: the exact 11-color palette libvgcode renders, with the measured minimum, average and
+  maximum for speed, flow, layer height, line width, temperature, fan and layer time; log scale and
+  estimated (`≈`) schemes are marked. `ViewLegend` is a Java port of `ColorRange.cpp`, cross-checked
+  against the C++ implementation.
+- `GCodeStats` derives those numbers in a single pass over the sliced file.
+- Each extrusion role row now shows its color swatch, making the line-type view self-explanatory.
+
+**Build**
+- New `-PusePrebuiltNative=true` path: build only the Java layer against the engine `.so` files of the
+  upstream APK, which turns a multi-hour native build into a two-minute build.
+- `scripts/build_all_deps_android_fixed.sh` builds Boost, oneTBB, OCCT and GMP/MPFR for arm64-v8a with
+  the headers CMAKE actually expects.
+- Fixed the `Duplicate resources` failure when both `jniLibs` trees are present.
+
+**Known limits**
+- Upload and `.gcode.3mf` acceptance were not validated against real 5M / 5M Pro / AD5X firmware.
+- Sliced output is alpha; always inspect the preview before printing.
+
 ## Credits
 
-This project stands on the shoulders of:
+This fork builds on the work of:
 
-- [Slice Beam](https://github.com/utkabobr/SliceBeam) by utkabobr — the Android shell, JNI bridge, and OpenGL preview this project is built on
-- [OrcaSlicer](https://github.com/SoftFever/OrcaSlicer) by SoftFever — the slicing engine
+- [Slice Beam](https://github.com/utkabobr/SliceBeam) by utkabobr — the Android shell, JNI bridge, and OpenGL preview
+- [OrcaSlicer](https://github.com/SoftFever/OrcaSlicer) by SoftFever — the slicing engine and Spanish translations
 - [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer) / Slic3r and [Bambu Studio](https://github.com/bambulab/BambuStudio), which OrcaSlicer is built upon
+- [CodeMasterCody3D](https://github.com/CodeMasterCody3D) — OrcaSlicer Mobile upstream
 
 ## Status
 
