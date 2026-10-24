@@ -96,6 +96,8 @@ public class Slic3rConfigWrapper {
             "use_firmware_retraction", "use_volumetric_e", "variable_layer_height", "prefer_clockwise_movements",
             //FIXME the print host keys are left here just for conversion from the Printer preset to Physical Printer preset.
             "host_type", "print_host", "printhost_apikey", "printhost_cafile",
+            // Flashforge-style hosts need serial number + access code stored with the printer preset.
+            "printhost_user", "printhost_password",
             "single_extruder_multi_material", "start_gcode", "end_gcode", "before_layer_gcode", "layer_gcode", "toolchange_gcode",
             "color_change_gcode", "pause_print_gcode", "template_custom_gcode",
             "between_objects_gcode", "printer_vendor", "printer_model", "printer_variant", "printer_notes", "cooling_tube_retraction",

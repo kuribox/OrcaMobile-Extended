@@ -1,12 +1,16 @@
 package ru.ytkab0bp.slicebeam.fragment;
 
+import androidx.appcompat.app.AlertDialog;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import ru.ytkab0bp.slicebeam.R;
 import ru.ytkab0bp.slicebeam.SliceBeam;
+import ru.ytkab0bp.slicebeam.components.BeamAlertDialogBuilder;
 import ru.ytkab0bp.slicebeam.config.ConfigObject;
+import ru.ytkab0bp.slicebeam.recycler.PreferenceItem;
 import ru.ytkab0bp.slicebeam.recycler.SpaceItem;
 import ru.ytkab0bp.slicebeam.slic3r.PrintConfigDef;
 import ru.ytkab0bp.slicebeam.slic3r.Slic3rLocalization;
@@ -201,10 +205,70 @@ public class PrinterConfigFragment extends ProfileListFragment {
                 new OptionElement(new SubHeader("Print Host upload")),
                 new OptionElement(def.options.get("host_type")),
                 new OptionElement(def.options.get("print_host")),
-                new OptionElement(def.options.get("printhost_apikey"))
+                new OptionElement(def.options.get("printhost_apikey")),
+                // Flashforge (Adventurer 5M / AD5X) authenticates with serial number + access code.
+                new OptionElement(relabeledOption(def, "printhost_user", "Serial number", "Network info screen of the printer")),
+                new OptionElement(relabeledOption(def, "printhost_password", "Access code", "Network info screen of the printer")),
+                new OptionElement(hostTestItem())
         ));
 
         return list;
+    }
+
+    /** Same option definition, presented with a host-specific label/tooltip. */
+    private static ru.ytkab0bp.slicebeam.slic3r.ConfigOptionDef relabeledOption(PrintConfigDef def, String key, String label, String tooltip) {
+        ru.ytkab0bp.slicebeam.slic3r.ConfigOptionDef option = def.options.get(key);
+        if (option == null) return null;
+        option.label = label;
+        option.fullLabel = label;
+        option.tooltip = tooltip;
+        return option;
+    }
+
+    private PreferenceItem hostTestItem() {
+        PreferenceItem item = new PreferenceItem()
+                .setTitle(SliceBeam.INSTANCE.getString(R.string.MenuPrinterTestConnection))
+                .setSubtitle(describeHost());
+        item.setOnClickListener(v -> runHostTest());
+        return item;
+    }
+
+    private String describeHost() {
+        if (currentConfig == null) return "";
+        String type = currentConfig.get("host_type");
+        String host = currentConfig.get("print_host");
+        if (type == null || type.isEmpty()) type = "octoprint";
+        if (host == null || host.isEmpty()) {
+            return SliceBeam.INSTANCE.getString(R.string.MenuPrinterTestNoHostHint);
+        }
+        return type + " · " + host;
+    }
+
+    private void runHostTest() {
+        final android.content.Context ctx = getContext();
+        if (ctx == null) return;
+        String type = currentConfig != null ? currentConfig.get("host_type") : null;
+        String host = currentConfig != null ? currentConfig.get("print_host") : null;
+        String apiKey = currentConfig != null ? currentConfig.get("printhost_apikey") : null;
+        String user = currentConfig != null ? currentConfig.get("printhost_user") : null;
+        String password = currentConfig != null ? currentConfig.get("printhost_password") : null;
+
+        final AlertDialog dialog = new BeamAlertDialogBuilder(ctx)
+                .setTitle(R.string.MenuPrinterTestConnection)
+                .setMessage(R.string.MenuPrinterTestRunning)
+                .setCancelable(true)
+                .create();
+        dialog.show();
+
+        ru.ytkab0bp.slicebeam.utils.PrintHostTester.test(type, host, apiKey, user, password, (ok, message) ->
+                ViewUtils.postOnMainThread(() -> {
+                    if (dialog.isShowing()) dialog.dismiss();
+                    new BeamAlertDialogBuilder(ctx)
+                            .setTitle(ok ? R.string.MenuPrinterTestOKTitle : R.string.MenuPrinterTestFailedTitle)
+                            .setMessage(message)
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show();
+                }));
     }
 
     @Override

@@ -806,8 +806,11 @@ public abstract class ProfileListFragment extends Fragment {
                         String[] labels;
                         String[] values;
                         if (Objects.equals("host_type", def.key)) {
-                            labels = new String[]{"OctoPrint"};
-                            values = new String[]{"octoprint"};
+                            labels = new String[def.enumLabels.length];
+                            values = def.enumValues;
+                            for (int i = 0; i < def.enumLabels.length; i++) {
+                                labels[i] = Slic3rLocalization.getString(def.enumLabels[i]);
+                            }
                         } else {
                             labels = new String[def.enumLabels.length];
                             values = def.enumValues;
