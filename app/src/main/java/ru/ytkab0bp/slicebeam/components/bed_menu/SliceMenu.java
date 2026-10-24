@@ -174,8 +174,10 @@ public class SliceMenu extends ListBedMenu {
 
     private void uploadFlashforge(String host, String apiKey, boolean print, String name) {
         final ConfigObject printer = SliceBeam.CONFIG.findPrinter(SliceBeam.CONFIG.presets.get("printer"));
-        final String serialNumber = printer != null ? printer.get("printhost_user") : "";
-        final String checkCode = printer != null ? printer.get("printhost_password") : "";
+        // Same configuration keys as desktop OrcaSlicer: the printer serial lives in
+        // flashforge_serial_number and the check code in printhost_apikey.
+        final String serialNumber = printer != null ? printer.get("flashforge_serial_number") : "";
+        final String checkCode = printer != null ? printer.get("printhost_apikey") : "";
 
         if (TextUtils.isEmpty(serialNumber) || TextUtils.isEmpty(checkCode)) {
             ViewUtils.postOnMainThread(() -> new BeamAlertDialogBuilder(fragment.getContext())

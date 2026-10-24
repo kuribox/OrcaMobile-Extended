@@ -14,6 +14,7 @@ import ru.ytkab0bp.slicebeam.recycler.PreferenceItem;
 import ru.ytkab0bp.slicebeam.recycler.SpaceItem;
 import ru.ytkab0bp.slicebeam.slic3r.PrintConfigDef;
 import ru.ytkab0bp.slicebeam.slic3r.Slic3rLocalization;
+import ru.ytkab0bp.slicebeam.utils.FlashforgeDiscovery;
 import ru.ytkab0bp.slicebeam.utils.ViewUtils;
 
 public class PrinterConfigFragment extends ProfileListFragment {
@@ -205,24 +206,78 @@ public class PrinterConfigFragment extends ProfileListFragment {
                 new OptionElement(new SubHeader("Print Host upload")),
                 new OptionElement(def.options.get("host_type")),
                 new OptionElement(def.options.get("print_host")),
+                // Flashforge keeps its check code in the API key field and takes the serial number
+                // from discovery, exactly like the desktop printer dialog.
                 new OptionElement(def.options.get("printhost_apikey")),
-                // Flashforge (Adventurer 5M / AD5X) authenticates with serial number + access code.
-                new OptionElement(relabeledOption(def, "printhost_user", "Serial number", "Network info screen of the printer")),
-                new OptionElement(relabeledOption(def, "printhost_password", "Access code", "Network info screen of the printer")),
+                new OptionElement(def.options.get("flashforge_serial_number")),
+                new OptionElement(discoverItem(def)),
                 new OptionElement(hostTestItem())
         ));
 
         return list;
     }
 
-    /** Same option definition, presented with a host-specific label/tooltip. */
-    private static ru.ytkab0bp.slicebeam.slic3r.ConfigOptionDef relabeledOption(PrintConfigDef def, String key, String label, String tooltip) {
-        ru.ytkab0bp.slicebeam.slic3r.ConfigOptionDef option = def.options.get(key);
-        if (option == null) return null;
-        option.label = label;
-        option.fullLabel = label;
-        option.tooltip = tooltip;
-        return option;
+    /** Fills print_host and flashforge_serial_number from the LAN, like the desktop dialog. */
+    private PreferenceItem discoverItem(PrintConfigDef def) {
+        PreferenceItem item = new PreferenceItem()
+                .setTitle(SliceBeam.INSTANCE.getString(R.string.PrinterDiscoverFlashforge))
+                .setSubtitle(SliceBeam.INSTANCE.getString(R.string.PrinterDiscoverFlashforgeHint));
+        item.setOnClickListener(v -> runDiscovery(def));
+        return item;
+    }
+
+    private void runDiscovery(PrintConfigDef def) {
+        final android.content.Context ctx = getContext();
+        if (ctx == null) return;
+
+        final AlertDialog dialog = new BeamAlertDialogBuilder(ctx)
+                .setTitle(R.string.PrinterDiscoverFlashforge)
+                .setMessage(R.string.PrinterDiscoverFlashforgeRunning)
+                .setCancelable(true)
+                .create();
+        dialog.show();
+
+        new Thread(() -> {
+            List<FlashforgeDiscovery.Printer> found = null;
+            String error = null;
+            try {
+                found = FlashforgeDiscovery.discover(10000, 1500, 3);
+            } catch (Exception e) {
+                error = e.getClass().getSimpleName() + ": " + e.getMessage();
+            }
+            final List<FlashforgeDiscovery.Printer> printers = found;
+            final String failure = error;
+            ViewUtils.postOnMainThread(() -> {
+                if (dialog.isShowing()) dialog.dismiss();
+
+                if (failure != null || printers == null || printers.isEmpty()) {
+                    new BeamAlertDialogBuilder(ctx)
+                            .setTitle(R.string.PrinterDiscoverFlashforge)
+                            .setMessage(failure != null ? failure : SliceBeam.INSTANCE.getString(R.string.PrinterDiscoverFlashforgeNone))
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show();
+                    return;
+                }
+
+                String[] labels = new String[printers.size()];
+                for (int i = 0; i < printers.size(); i++) {
+                    labels[i] = printers.get(i).toString();
+                }
+                new BeamAlertDialogBuilder(ctx)
+                        .setTitle(R.string.PrinterDiscoverFlashforgePick)
+                        .setItems(labels, (d, which) -> applyDiscoveredPrinter(def, printers.get(which)))
+                        .show();
+            });
+        }, "flashforge-discovery").start();
+    }
+
+    private void applyDiscoveredPrinter(PrintConfigDef def, FlashforgeDiscovery.Printer printer) {
+        updateConfigField(def.options.get("host_type"), -1, "flashforge");
+        updateConfigField(def.options.get("print_host"), -1, printer.ip);
+        if (printer.serial != null && !printer.serial.isEmpty()) {
+            updateConfigField(def.options.get("flashforge_serial_number"), -1, printer.serial);
+        }
+        onUpdateConfigItems();
     }
 
     private PreferenceItem hostTestItem() {
@@ -250,8 +305,7 @@ public class PrinterConfigFragment extends ProfileListFragment {
         String type = currentConfig != null ? currentConfig.get("host_type") : null;
         String host = currentConfig != null ? currentConfig.get("print_host") : null;
         String apiKey = currentConfig != null ? currentConfig.get("printhost_apikey") : null;
-        String user = currentConfig != null ? currentConfig.get("printhost_user") : null;
-        String password = currentConfig != null ? currentConfig.get("printhost_password") : null;
+        String serialNumber = currentConfig != null ? currentConfig.get("flashforge_serial_number") : null;
 
         final AlertDialog dialog = new BeamAlertDialogBuilder(ctx)
                 .setTitle(R.string.MenuPrinterTestConnection)
@@ -260,7 +314,7 @@ public class PrinterConfigFragment extends ProfileListFragment {
                 .create();
         dialog.show();
 
-        ru.ytkab0bp.slicebeam.utils.PrintHostTester.test(type, host, apiKey, user, password, (ok, message) ->
+        ru.ytkab0bp.slicebeam.utils.PrintHostTester.test(type, host, apiKey, serialNumber, (ok, message) ->
                 ViewUtils.postOnMainThread(() -> {
                     if (dialog.isShowing()) dialog.dismiss();
                     new BeamAlertDialogBuilder(ctx)

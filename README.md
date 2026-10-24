@@ -93,13 +93,22 @@ Note: the Java package path remains `ru.ytkab0bp.slicebeam` for now because nati
 
 ## Flashforge setup
 
+The flow mirrors the desktop printer dialog, including its discovery step — you never type a serial
+number by hand.
+
 1. Open the printer profile → **Physical Printer** tab.
-2. Set **Host type** = `Flashforge`.
-3. Enter the printer's IP address in **Print host** (e.g., `192.168.1.42`).
-4. Enter the printer's **Serial number** (network info screen of the printer).
-5. Enter the printer's **Access code** (same screen).
-6. Tap **Test connection** to verify the printer answers (POST `/detail` on port 8898).
-7. After slicing, use **Send** or **Send and print** from the slice menu.
+2. Tap **Find Flashforge printers**. The app broadcasts the same USR-WIFI232 discovery payload to UDP
+   `48899` that desktop OrcaSlicer sends and listens on UDP `18007`.
+3. Pick your printer from the list. That fills **Print host** (its IP) and **Serial number** (read from
+   the discovery reply at the same offset the desktop uses).
+4. Type the printer's check code into **API key** — that is the field desktop OrcaSlicer stores it in
+   (`printhost_apikey`). The same key names are used (`flashforge_serial_number`, `printhost_apikey`),
+   so a printer profile exported from the desktop works unchanged.
+5. Tap **Test connection** (POST `/detail` on port 8898 with `{serialNumber, checkCode}`).
+6. After slicing, use **Send** or **Send and print** from the slice menu: multipart `POST /uploadGcode`
+   on port 8898 with the `serialNumber`, `checkCode`, `fileSize`, `printNow`, `levelingBeforePrint`,
+   `flowCalibration`, `firstLayerInspection`, `timeLapseVideo`, `useMatlStation`, `gcodeToolCnt` and
+   `materialMappings` headers, and a `code`/`err` check on the JSON reply.
 
 The app uses Flashforge's local HTTP API (port 8898) — no internet required. The sliced file is uploaded as `.gcode.3mf` (metadata + G-code + embedded thumbnails).
 
@@ -165,8 +174,10 @@ All notable changes of this fork. Dates are local (Europe/Madrid).
 - Native Flashforge HTTP API on port **8898** for Adventurer 5M / 5M Pro / AD5X: *Send* and
   *Send and print*, with `serialNumber`, `checkCode`, `fileSize`, `printNow`, `levelingBeforePrint`,
   `gcodeToolCnt` and `materialMappings` headers.
-- Printer profile gained a *Physical printer* section (host type, host, API key, **Serial number**,
-  **Access code**) and a **Test connection** button.
+- Printer profile gained a *Physical printer* section (host type, host, API key, serial number) and a
+  **Test connection** button.
+- **LAN discovery** (UDP 48899 → 18007, same payload and offsets as the desktop) fills the host and the
+  serial number, so the serial is never typed by hand — matching how the desktop dialog behaves.
 - `PrintHostTester` probes each protocol properly: `POST /detail` on Flashforge, `GET /api/version`
   with `X-Api-Key` on OctoPrint/Klipper, `GET :7125/server/info` on Moonraker.
 

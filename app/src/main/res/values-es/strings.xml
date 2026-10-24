@@ -313,4 +313,9 @@
     <string name="InfoLegendFeatureNote">Cada color corresponde a un tipo de línea de la lista de abajo</string>
     <string name="InfoLegendToolNote">Un color por extrusor, según la paleta de filamentos</string>
     <string name="InfoLegendExtruder">Extrusor %1$d</string>
+    <string name="PrinterDiscoverFlashforge">Buscar impresoras Flashforge</string>
+    <string name="PrinterDiscoverFlashforgeHint">Rellena dirección y número de serie; el código de verificación va en API key</string>
+    <string name="PrinterDiscoverFlashforgeRunning">Buscando en la red local…</string>
+    <string name="PrinterDiscoverFlashforgeNone">No se encontraron impresoras Flashforge en la red local.</string>
+    <string name="PrinterDiscoverFlashforgePick">Selecciona una impresora Flashforge</string>
 </resources>

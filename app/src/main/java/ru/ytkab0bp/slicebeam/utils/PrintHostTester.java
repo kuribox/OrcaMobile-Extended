@@ -33,14 +33,13 @@ public final class PrintHostTester {
     public static void test(final String hostType,
                             final String printHost,
                             final String apiKey,
-                            final String user,
-                            final String password,
+                            final String flashforgeSerialNumber,
                             final Callback callback) {
         new Thread(() -> {
             boolean ok;
             String message;
             try {
-                Result r = run(hostType, printHost, apiKey, user, password);
+                Result r = run(hostType, printHost, apiKey, flashforgeSerialNumber);
                 ok = r.ok;
                 message = r.message;
             } catch (Exception e) {
@@ -61,7 +60,7 @@ public final class PrintHostTester {
         }
     }
 
-    private static Result run(String hostType, String printHost, String apiKey, String user, String password) throws Exception {
+    private static Result run(String hostType, String printHost, String apiKey, String flashforgeSerialNumber) throws Exception {
         String type = hostType == null ? "octoprint" : hostType.toLowerCase(Locale.ROOT).trim();
         String host = normalizeHost(printHost);
         if (TextUtils.isEmpty(host)) {
@@ -71,7 +70,9 @@ public final class PrintHostTester {
 
         switch (type) {
             case "flashforge":
-                return testFlashforge(host, user, password);
+                // Desktop stores the check code in printhost_apikey and the serial in
+                // flashforge_serial_number; /detail wants both.
+                return testFlashforge(host, flashforgeSerialNumber, apiKey);
             case "moonraker":
                 return testMoonraker(host, apiKey);
             default:
