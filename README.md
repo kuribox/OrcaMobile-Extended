@@ -151,6 +151,56 @@ carries no measurable moves for a metric the row reads *No values*.
 
 After slicing, the slice menu has two actions — **Export** and **Share**. Both ask which format to produce:
 
+- **G-code** (`.gcode`) — plain sliced output.
+- **3MF package** (`.gcode.3mf`) — what Flashforge, Bambu Lab and Qidi printers accept.
+
+The package follows OrcaSlicer's own exporter (`src/libslic3r/Format/bbs_3mf.cpp`) part by part instead
+of being a renamed zip:
+
+| Part | Contents |
+| --- | --- |
+| `[Content_Types].xml` | the same four defaults Orca writes (`rels`, `model`, `png`, `gcode`) |
+| `_rels/.rels` | `rel-1` model, `rel-2`/`rel-4` plate thumbnail, `rel-5` small thumbnail |
+| `3D/3dmodel.model` | real geometry, exported from the loaded model by the engine |
+| `Metadata/plate_1.gcode` (+ `.md5`) | the sliced G-code |
+| `Metadata/plate_1.png` / `plate_1_small.png` | plate preview (300×300) and its 128×128 companion |
+| `Metadata/slice_info.config` | prediction, weight, nozzle diameter, filaments and objects |
+| `Metadata/model_settings.config` | plate and object metadata |
+| `Metadata/project_settings.config` | flat JSON of every setting |
+| `Metadata/_rels/model_settings.config.rels`, `cut_information.xml`, `filament_sequence.json`, `plate_1.json` | the remaining parts the engine emits |
+
+Two details that used to be wrong and made printers show no preview or reject the file:
+
+- The native exporter writes G-code with a null thumbnail callback, so sliced files carry no
+  `; thumbnail` blocks. When none is found, `GCodeThumbnail` rasterises a top view of the toolpaths at
+  300×300 instead of shipping a 1×1 placeholder.
+- Values interpolated into the XML are escaped (`&`, `<`, `>`, quotes); object names read back from the
+  model are unescaped first so nothing is escaped twice.
+
+## Print info panel
+
+After slicing, the **Info** entry in the bed menu lists every extrusion role with its time, filament
+length and weight, and lets you toggle each one. The panel is scrollable and is capped to part of the
+screen so the model stays visible while you switch color scheme.
+
+Above the role list, a **color legend** explains what each color means. For the value-based schemes
+(speed, flow, temperature, …) it draws the exact 11-color palette libvgcode renders and labels the ends
+with the measured minimum and maximum plus the average, so a color can be read back as a value; the
+layer-time-logarithmic scheme is marked as such. For line type and filament the colors are categorical,
+so the legend names them instead: each row of the list below carries its color swatch.
+
+The *Values* block shows the real numbers behind the active color scheme
+(min – max · average): layer height (mm), line width (mm), speed (mm/s), volumetric flow (mm³/s),
+temperature (°C), fan speed (%) and layer time (s). `ViewLegend` is a Java port of libvgcode's
+`ColorRange` (palette + linear/logarithmic interpolation) verified against the C++ implementation. They come from `GCodeStats`, a single pass over the
+sliced G-code that derives speed from the `F` values, flow and effective line width from the extruded
+volume against segment length, and layer heights from the `Z` steps. Nothing is invented: if the file
+carries no measurable moves for a metric the row reads *No values*.
+
+## Exporting and sharing
+
+After slicing, the slice menu has two actions — **Export** and **Share**. Both ask which format to produce:
+
 - **G-code only (.gcode)** — plain G-code, as before.
 - **Print package (.gcode.3mf)** — standard 3MF package with the G-code plus metadata and preview, containing:
   - `Metadata/plate_1.gcode` — the sliced G-code
