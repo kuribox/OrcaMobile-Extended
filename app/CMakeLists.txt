@@ -88,7 +88,7 @@ set_target_properties(mpfr PROPERTIES IMPORTED_LOCATION
 
 include_directories(src/main/jni/eigen)
 include_directories(src/main/jni/libigl)
-include_directories(src/main/occt/include/${ANDROID_ABI})
+include_directories(src/main/occt/include/${ANDROID_ABI}/opencascade)
 
 # Expat config
 set(EXPAT_CONTEXT_BYTES 1024)
@@ -264,7 +264,7 @@ add_library(heatshrink
 add_library(OCCTWrapper
         STATIC
         src/main/jni/occt_wrapper/OCCTWrapper.cpp)
-target_include_directories(OCCTWrapper PRIVATE src/main/occt/include/${ANDROID_ABI})
+target_include_directories(OCCTWrapper PRIVATE src/main/occt/include/${ANDROID_ABI}/opencascade)
 generate_export_header(OCCTWrapper
         EXPORT_FILE_NAME ${CMAKE_CURRENT_SOURCE_DIR}/src/main/jni/occt_wrapper/occtwrapper_export.h)
 
