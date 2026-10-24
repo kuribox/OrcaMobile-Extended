@@ -5,9 +5,35 @@ plugins {
 def commit = getGitCommitHash(file('.'))
 def usePrebuiltNative = (project.findProperty("usePrebuiltNative") ?: "false").toString().toBoolean()
 
+// Release signing material lives outside the repo, in ~/.gradle/gradle.properties:
+//   ORCAM_STORE_FILE=/home/<user>/keystores/orcam-release.jks
+//   ORCAM_STORE_PASSWORD=...
+//   ORCAM_KEY_ALIAS=orcam
+//   ORCAM_KEY_PASSWORD=...
+// Without it, release builds fall back to the debug key so the artifact stays
+// installable instead of being an unsigned APK.
+def orcamStoreFile = project.findProperty("ORCAM_STORE_FILE")
+def hasReleaseKey = orcamStoreFile != null && new File(orcamStoreFile.toString()).exists()
+if (hasReleaseKey) {
+    logger.lifecycle("OrcaM: signing release builds with ${orcamStoreFile}")
+} else {
+    logger.lifecycle("OrcaM: no ORCAM_STORE_FILE in ~/.gradle/gradle.properties, release builds use the debug key")
+}
+
 android {
     namespace 'ru.ytkab0bp.slicebeam'
     compileSdk 35
+
+    signingConfigs {
+        if (hasReleaseKey) {
+            release {
+                storeFile file(orcamStoreFile)
+                storePassword project.findProperty("ORCAM_STORE_PASSWORD")
+                keyAlias project.findProperty("ORCAM_KEY_ALIAS") ?: "orcam"
+                keyPassword project.findProperty("ORCAM_KEY_PASSWORD") ?: project.findProperty("ORCAM_STORE_PASSWORD")
+            }
+        }
+    }
 
     defaultConfig {
         applicationId "com.codemastercody3d.orcaslicermobile"
@@ -45,6 +71,7 @@ android {
 
     buildTypes {
         release {
+            signingConfig hasReleaseKey ? signingConfigs.release : signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             buildConfigField "boolean", "IS_GOOGLE_PLAY", "false"
