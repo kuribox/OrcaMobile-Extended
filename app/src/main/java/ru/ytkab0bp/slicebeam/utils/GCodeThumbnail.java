@@ -175,6 +175,13 @@ public final class GCodeThumbnail {
         float maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
     }
 
+    /** Plate bounds of the extruding moves: {minX, minY, maxX, maxY}. */
+    public static float[] bounds(File gcode) {
+        Bounds b = measure(gcode);
+        if (b == null) return new float[]{0f, 0f, 0f, 0f};
+        return new float[]{b.minX, b.minY, b.maxX, b.maxY};
+    }
+
     private static Bounds measure(File gcode) {
         Bounds bounds = new Bounds();
         try (BufferedReader reader = new BufferedReader(

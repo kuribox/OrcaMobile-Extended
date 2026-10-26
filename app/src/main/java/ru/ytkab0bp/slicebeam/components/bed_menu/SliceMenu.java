@@ -62,7 +62,6 @@ import ru.ytkab0bp.slicebeam.events.NeedSnackbarEvent;
 import ru.ytkab0bp.slicebeam.fragment.BedFragment;
 import ru.ytkab0bp.slicebeam.recycler.SimpleRecyclerItem;
 import ru.ytkab0bp.slicebeam.slic3r.GCodeProcessorResult;
-import ru.ytkab0bp.slicebeam.slic3r.Model;
 import ru.ytkab0bp.slicebeam.slic3r.GCodeViewer;
 import ru.ytkab0bp.slicebeam.slic3r.Slic3rLocalization;
 import ru.ytkab0bp.slicebeam.theme.IThemeView;
@@ -209,12 +208,7 @@ public class SliceMenu extends ListBedMenu {
             File upload = null;
             try {
                 File packageFile = new File(SliceBeam.INSTANCE.getCacheDir(), gcode3mfName(uploadName));
-                File model3mf = buildModel3mf();
-                try {
-                    GCode3mfPackager.create(gcodeFile, packageFile, printer, sliceResult, model3mf);
-                } finally {
-                    if (model3mf != null) model3mf.delete();
-                }
+                GCode3mfPackager.create(gcodeFile, packageFile, printer, sliceResult);
                 upload = packageFile;
             } catch (Exception e) {
                 failHostAction(tag, SliceBeam.INSTANCE.getString(R.string.MenuSliceExport3mfFailed, String.valueOf(e.getMessage())));
@@ -1291,26 +1285,6 @@ public class SliceMenu extends ListBedMenu {
         act.startActivityForResult(i, MainActivity.REQUEST_CODE_EXPORT_GCODE);
     }
 
-    /**
-     * Exports the loaded model to a plain 3MF so the .gcode.3mf can carry the real geometry.
-     * Returns null when the model is not available (nothing is lost: the package still has the
-     * G-code and the plate thumbnails).
-     */
-    private File buildModel3mf() {
-        try {
-            Model model = fragment.getGlView().getRenderer().getModel();
-            if (model == null) return null;
-            File cfg = SliceBeam.getCurrentConfigFile();
-            if (cfg == null || !cfg.isFile()) return null;
-            File out = new File(SliceBeam.INSTANCE.getCacheDir(), "model_" + System.currentTimeMillis() + ".3mf");
-            model.export3mf(cfg.getAbsolutePath(), out.getAbsolutePath());
-            return out.isFile() && out.length() > 0 ? out : null;
-        } catch (Exception e) {
-            Log.w("SliceMenu", "model export for 3mf failed: " + e);
-            return null;
-        }
-    }
-
     private static String gcode3mfName(String recommended) {
         String base = recommended.trim();
         if (base.isEmpty()) base = "print.gcode";
@@ -1324,12 +1298,7 @@ public class SliceMenu extends ListBedMenu {
         File dest = new File(SliceBeam.INSTANCE.getCacheDir(), "export_" + System.currentTimeMillis() + ".gcode.3mf");
         ConfigObject printer = SliceBeam.CONFIG.findPrinter(SliceBeam.CONFIG.presets.get("printer"));
         GCodeProcessorResult result = fragment.getGlView().getRenderer().getGcodeResult();
-        File model3mf = buildModel3mf();
-        try {
-            GCode3mfPackager.create(gcode, dest, printer, result, model3mf);
-        } finally {
-            if (model3mf != null) model3mf.delete();
-        }
+        GCode3mfPackager.create(gcode, dest, printer, result);
         if (!GCode3mfPackager.verify(dest)) {
             // Keep going: some firmwares only need the archive to be readable, but warn in log.
             Log.w("SliceMenu", "gcode.3mf failed self-check: " + dest.getAbsolutePath());

@@ -16,7 +16,6 @@ import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -44,10 +43,10 @@ public final class GCode3mfPackager {
     private static final String CONTENT_TYPES = "[Content_Types].xml";
     private static final String ROOT_RELS = "_rels/.rels";
     private static final String MODEL_FILE = "3D/3dmodel.model";
-    private static final String MODEL_RELS = "3D/_rels/3dmodel.model.rels";
 
     private static final int PLATE = 1;
-    private static final int THUMBNAIL_SIZE = 300;
+    /** The working Flashforge package (OrcaSlicer 2.4.2, AD5X) ships 512x512 plate images. */
+    private static final int THUMBNAIL_SIZE = 512;
     /** PLATE_THUMBNAIL_SMALL_WIDTH in bbs_3mf.hpp: Orca writes a 128x128 companion image. */
     private static final int SMALL_THUMBNAIL_SIZE = 128;
 
@@ -82,21 +81,13 @@ public final class GCode3mfPackager {
         }
     }
 
-    private static final class ObjectInfo {
-        final String id;
-        final String name;
-
-        ObjectInfo(String id, String name) {
-            this.id = id;
-            this.name = name;
-        }
-    }
-
     private static final class PrintMetadata {
         final Map<String, String> settings = new LinkedHashMap<>();
         int layers;
         int seconds;
         float nozzle = 0.4f;
+        float layerHeight = 0.2f;
+        String objectName = "plate_1";
         final List<String> materials = new ArrayList<>();
         final List<String> colors = new ArrayList<>();
         final List<Double> usedMeters = new ArrayList<>();
@@ -116,8 +107,7 @@ public final class GCode3mfPackager {
     public static PackageSummary create(File sourceGcode,
                                         File destination,
                                         ConfigObject printer,
-                                        GCodeProcessorResult gcodeResult,
-                                        File model3mf) throws Exception {
+                                        GCodeProcessorResult gcodeResult) throws Exception {
         if (sourceGcode == null || !sourceGcode.isFile() || sourceGcode.length() == 0L) {
             throw new IllegalArgumentException("The sliced G-code file is missing or empty.");
         }
@@ -132,12 +122,7 @@ public final class GCode3mfPackager {
         byte[] smallPng = GCodeThumbnail.scaleTo(platePng, SMALL_THUMBNAIL_SIZE);
         if (smallPng == null) smallPng = platePng;
 
-        Map<String, byte[]> base = new LinkedHashMap<>();
-        if (model3mf != null && model3mf.isFile()) {
-            base.putAll(readZip(model3mf));
-        }
-        byte[] modelXml = base.get(MODEL_FILE);
-        List<ObjectInfo> objects = parseObjects(modelXml);
+        float[] bbox = GCodeThumbnail.bounds(sourceGcode);
 
         File parent = destination.getParentFile();
         if (parent != null) parent.mkdirs();
@@ -151,28 +136,16 @@ public final class GCode3mfPackager {
             writeText(zip, CONTENT_TYPES, contentTypesXml());
             writeText(zip, ROOT_RELS, rootRelationshipsXml());
 
-            if (modelXml != null) {
-                writeBytes(zip, MODEL_FILE, modelXml);
-            } else {
-                writeText(zip, MODEL_FILE, minimalModelXml());
-            }
-            if (base.containsKey(MODEL_RELS)) {
-                writeBytes(zip, MODEL_RELS, base.get(MODEL_RELS));
-            }
-            // Remaining parts of the model export (cut info, object config, textures…).
-            for (Map.Entry<String, byte[]> entry : base.entrySet()) {
-                String name = entry.getKey();
-                if (name.equals(CONTENT_TYPES) || name.equals(ROOT_RELS)
-                        || name.equals(MODEL_FILE) || name.equals(MODEL_RELS)
-                        || name.startsWith("Metadata/plate_")) {
-                    continue;
-                }
-                writeBytes(zip, name, entry.getValue());
-            }
+            writeText(zip, MODEL_FILE, modelXml());
 
+            // The accepted package ships four 512x512 plate images plus the 128x128 companion; all of
+            // them are referenced from model_settings.config, so none may be missing.
             writeBytes(zip, "Metadata/plate_" + PLATE + ".png", platePng);
             writeBytes(zip, "Metadata/plate_" + PLATE + "_small.png", smallPng);
-            writeText(zip, "Metadata/plate_" + PLATE + ".json", plateJson(objects));
+            writeBytes(zip, "Metadata/plate_no_light_" + PLATE + ".png", platePng);
+            writeBytes(zip, "Metadata/top_" + PLATE + ".png", platePng);
+            writeBytes(zip, "Metadata/pick_" + PLATE + ".png", platePng);
+            writeText(zip, "Metadata/plate_" + PLATE + ".json", plateJson(meta, bbox));
             writeText(zip, "Metadata/project_settings.config", projectSettings(meta, printer));
 
             writeText(zip, "Metadata/plate_" + PLATE + ".gcode.md5", digest(sourceGcode));
@@ -186,15 +159,14 @@ public final class GCode3mfPackager {
             }
             zip.closeEntry();
 
-            writeText(zip, "Metadata/model_settings.config", modelSettingsXml(objects));
+            writeText(zip, "Metadata/model_settings.config", modelSettingsXml());
             writeText(zip, "Metadata/_rels/model_settings.config.rels",
-                    "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">\n"
-                            + "  <Relationship Target=\"/" + gcodePath + "\" Id=\"rel-1\" "
+                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                            + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">\n"
+                            + " <Relationship Target=\"/" + gcodePath + "\" Id=\"rel-1\" "
                             + "Type=\"http://schemas.bambulab.com/package/2021/gcode\"/>\n"
                             + "</Relationships>\n");
-            writeText(zip, "Metadata/cut_information.xml",
-                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<objects/>\n");
-            writeText(zip, "Metadata/slice_info.config", sliceInfoXml(meta, objects, printer));
+            writeText(zip, "Metadata/slice_info.config", sliceInfoXml(meta, printer, bbox));
             writeText(zip, "Metadata/filament_sequence.json", sequenceJson(meta));
         } catch (Exception e) {
             destination.delete();
@@ -202,7 +174,7 @@ public final class GCode3mfPackager {
         }
 
         return new PackageSummary(meta.layers, meta.seconds, meta.materials.size(), platePng.length,
-                objects.size(), modelXml != null);
+                1, false);
     }
 
     /** Checks the parts a strict importer looks for. */
@@ -212,6 +184,9 @@ public final class GCode3mfPackager {
                     CONTENT_TYPES, ROOT_RELS, MODEL_FILE,
                     "Metadata/plate_" + PLATE + ".png",
                     "Metadata/plate_" + PLATE + "_small.png",
+                    "Metadata/plate_no_light_" + PLATE + ".png",
+                    "Metadata/top_" + PLATE + ".png",
+                    "Metadata/pick_" + PLATE + ".png",
                     "Metadata/plate_" + PLATE + ".json",
                     "Metadata/plate_" + PLATE + ".gcode",
                     "Metadata/model_settings.config",
@@ -230,7 +205,8 @@ public final class GCode3mfPackager {
 
     // ---------------------------------------------------------------- metadata
 
-    private static PrintMetadata readMetadata(File gcodeFile) throws IOException {
+    private static PrintMetadata readMetadata(File sourceGcode) throws IOException {
+        File gcodeFile = sourceGcode;
         PrintMetadata meta = new PrintMetadata();
 
         try (BufferedReader reader = new BufferedReader(
@@ -289,6 +265,15 @@ public final class GCode3mfPackager {
             }
         }
 
+        String height = firstValue(meta.settings.get("layer_height"));
+        if (height != null) {
+            try {
+                meta.layerHeight = Float.parseFloat(height);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        meta.objectName = sourceGcode.getName().replaceFirst("(?i)\\.gcode$", "");
+
         if (meta.layers <= 0) meta.layers = 1;
 
         String types = firstValue(meta.settings.get("filament_type"));
@@ -343,52 +328,6 @@ public final class GCode3mfPackager {
 
     // ---------------------------------------------------------------- archive parts
 
-    private static Map<String, byte[]> readZip(File file) {
-        Map<String, byte[]> entries = new LinkedHashMap<>();
-        try (ZipFile zip = new ZipFile(file)) {
-            Enumeration<? extends ZipEntry> enumeration = zip.entries();
-            while (enumeration.hasMoreElements()) {
-                ZipEntry entry = enumeration.nextElement();
-                if (entry.isDirectory()) continue;
-                try (InputStream input = zip.getInputStream(entry)) {
-                    ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[64 * 1024];
-                    int len;
-                    while ((len = input.read(buffer)) > 0) {
-                        out.write(buffer, 0, len);
-                    }
-                    entries.put(entry.getName(), out.toByteArray());
-                }
-            }
-        } catch (Exception ignored) {
-            return new LinkedHashMap<>();
-        }
-        return entries;
-    }
-
-    private static List<ObjectInfo> parseObjects(byte[] modelXml) {
-        List<ObjectInfo> objects = new ArrayList<>();
-        if (modelXml == null) return objects;
-        String xml = new String(modelXml, StandardCharsets.UTF_8);
-        Matcher object = MODEL_OBJECT.matcher(xml);
-        while (object.find()) {
-            String id = object.group(1);
-            int start = object.end();
-            int end = xml.indexOf("</object>", start);
-            String body = end > start ? xml.substring(start, end) : "";
-            String name = null;
-            Matcher meta = META_NAME.matcher(body);
-            if (meta.find()) {
-                name = meta.group(1);
-            } else {
-                Matcher attr = OBJECT_ATTR_NAME.matcher(object.group());
-                if (attr.find()) name = attr.group(1);
-            }
-            objects.add(new ObjectInfo(id, name == null || name.isEmpty() ? "Object " + id : unescapeXml(name)));
-        }
-        return objects;
-    }
-
     /** Same parts and MIME types as _add_content_types_file_to_archive(). */
     private static String contentTypesXml() {
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
@@ -415,28 +354,70 @@ public final class GCode3mfPackager {
                 + "</Relationships>";
     }
 
-    private static String minimalModelXml() {
+    private static String modelXml() {
+        // The reference .gcode.3mf that the printer accepts carries no geometry at all: <resources> is
+        // empty and the plate lives in Metadata/. Keep the same shape.
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                + "<model unit=\"millimeter\" xml:lang=\"en-US\" xmlns=\"http://schemas.microsoft.com/3dmanufacturing/2013/01\">\n"
+                + "<model unit=\"millimeter\" xml:lang=\"en-US\" "
+                + "xmlns=\"http://schemas.microsoft.com/3dmanufacturing/core/2015/02\" "
+                + "xmlns:BambuStudio=\"http://schemas.bambulab.com/package/2021\" "
+                + "xmlns:p=\"http://schemas.microsoft.com/3dmanufacturing/production/2015/06\" requiredextensions=\"p\">\n"
                 + " <metadata name=\"Application\">OrcaSlicer Mobile</metadata>\n"
-                + " <metadata name=\"ModifiedDate\">"
-                + new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(new Date()) + "</metadata>\n"
-                + " <resources/>\n"
-                + " <build/>\n"
-                + "</model>\n";
+                + " <metadata name=\"OrcaSlicer\">OrcaSlicer Mobile</metadata>\n"
+                + " <metadata name=\"BambuStudio:3mfVersion\">1</metadata>\n"
+                + " <metadata name=\"Thumbnail_Middle\">/Metadata/plate_" + PLATE + ".png</metadata>\n"
+                + " <metadata name=\"Thumbnail_Small\">/Metadata/plate_" + PLATE + "_small.png</metadata>\n"
+                + " <resources>\n </resources>\n <build/>\n</model>\n";
     }
 
-    private static String plateJson(List<ObjectInfo> objects) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{\n  \"plate_index\": ").append(PLATE).append(",\n  \"bbox_objects\": [");
-        for (int i = 0; i < objects.size(); i++) {
-            if (i > 0) sb.append(", ");
-            sb.append("{\"id\": ").append(objects.get(i).id)
-                    .append(", \"name\": \"").append(escapeJson(objects.get(i).name)).append("\"}");
+
+
+    /** Same schema as the accepted package: bbox_all/bbox_objects plus plate hints. */
+    private static String plateJson(PrintMetadata meta, float[] bbox) {
+        StringBuilder sb = new StringBuilder("{\"bbox_all\":[");
+        for (int i = 0; i < 4; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(fmtCoord(bbox[i]));
         }
-        sb.append("],\n  \"bed_type\": \"textured_plate\"\n}\n");
+        sb.append("],\"bbox_objects\":[{\"area\":");
+        sb.append(fmtCoord(Math.max(0f, (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]))));
+        sb.append(",\"bbox\":[");
+        for (int i = 0; i < 4; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(fmtCoord(bbox[i]));
+        }
+        sb.append("],\"id\":1,\"layer_height\":").append(fmtCoord(meta.layerHeight));
+        sb.append(",\"name\":\"").append(escapeJson(meta.objectName)).append("\"}],");
+        sb.append("\"bed_type\":\"hot_plate\",\"filament_colors\":[");
+        for (int i = 0; i < meta.colors.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append("\"").append(escapeJson(meta.colors.get(i))).append("\"");
+        }
+        sb.append("],\"filament_ids\":[");
+        for (int i = 0; i < meta.colors.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(0);
+        }
+        sb.append("],\"first_extruder\":0");
+        sb.append(",\"is_seq_print\":false,\"nozzle_diameter\":").append(fmtCoord(meta.nozzle));
+        sb.append(",\"version\":2}");
         return sb.toString();
     }
+
+    private static String repeat(String value, int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < Math.max(1, count); i++) {
+            if (i > 0) sb.append(" ");
+            sb.append(value);
+        }
+        return sb.toString();
+    }
+
+    private static String fmtCoord(float value) {
+        return String.format(Locale.US, "%.6f", value);
+    }
+
+
 
     private static String projectSettings(PrintMetadata meta, ConfigObject printer) {
         StringBuilder sb = new StringBuilder("{\n");
@@ -471,67 +452,87 @@ public final class GCode3mfPackager {
         return "\"" + escapeJson(raw) + "\"";
     }
 
-    private static String modelSettingsXml(List<ObjectInfo> objects) {
-        StringBuilder sb = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<config>\n");
-        for (ObjectInfo object : objects) {
-            sb.append("  <object id=\"").append(object.id).append("\">\n");
-            sb.append("    <metadata key=\"name\" value=\"").append(escapeXml(object.name)).append("\"/>\n");
-            sb.append("    <metadata key=\"extruder\" value=\"1\"/>\n");
-            sb.append("  </object>\n");
-        }
-        sb.append("  <plate>\n");
+    private static String modelSettingsXml() {
+        // Mirrors the accepted file: only <plate>, and every file it names must exist in the archive.
+        StringBuilder sb = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<config>\n  <plate>\n");
         sb.append("    <metadata key=\"plater_id\" value=\"").append(PLATE).append("\"/>\n");
         sb.append("    <metadata key=\"plater_name\" value=\"\"/>\n");
         sb.append("    <metadata key=\"locked\" value=\"false\"/>\n");
+        sb.append("    <metadata key=\"filament_map_mode\" value=\"Auto For Flush\"/>\n");
+        sb.append("    <metadata key=\"filament_maps\" value=\"1\"/>\n");
+        sb.append("    <metadata key=\"gcode_file\" value=\"Metadata/plate_").append(PLATE).append(".gcode\"/>\n");
         sb.append("    <metadata key=\"thumbnail_file\" value=\"Metadata/plate_").append(PLATE).append(".png\"/>\n");
-        for (ObjectInfo object : objects) {
-            sb.append("    <object identify_id=\"").append(object.id).append("\" name=\"")
-                    .append(escapeXml(object.name)).append("\"/>\n");
-        }
+        sb.append("    <metadata key=\"thumbnail_no_light_file\" value=\"Metadata/plate_no_light_").append(PLATE).append(".png\"/>\n");
+        sb.append("    <metadata key=\"top_file\" value=\"Metadata/top_").append(PLATE).append(".png\"/>\n");
+        sb.append("    <metadata key=\"pick_file\" value=\"Metadata/pick_").append(PLATE).append(".png\"/>\n");
+        sb.append("    <metadata key=\"pattern_bbox_file\" value=\"Metadata/plate_").append(PLATE).append(".json\"/>\n");
         sb.append("  </plate>\n</config>\n");
         return sb.toString();
     }
 
-    private static String sliceInfoXml(PrintMetadata meta, List<ObjectInfo> objects, ConfigObject printer) {
-        StringBuilder sb = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<slice_info>\n");
+
+
+    /**
+     * Root element is {@code <config>}, not {@code <slice_info>}: that is what the package accepted by
+     * the printer carries, and what its importer looks for.
+     */
+    private static String sliceInfoXml(PrintMetadata meta, ConfigObject printer, float[] bbox) {
+        StringBuilder sb = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<config>\n");
         sb.append("  <header>\n");
         sb.append("    <header_item key=\"X-BBL-Client-Type\" value=\"slicer\"/>\n");
         sb.append("    <header_item key=\"X-BBL-Client-Version\" value=\"OrcaSlicer Mobile\"/>\n");
+        sb.append("    <header_item key=\"OrcaSlicer-Version\" value=\"OrcaSlicer Mobile\"/>\n");
         sb.append("  </header>\n");
         sb.append("  <plate>\n");
         sb.append("    <metadata key=\"index\" value=\"").append(PLATE).append("\"/>\n");
+        sb.append("    <metadata key=\"extruder_type\" value=\"0\"/>\n");
+        sb.append("    <metadata key=\"nozzle_volume_type\" value=\"0\"/>\n");
         if (printer != null) {
             sb.append("    <metadata key=\"printer_model_id\" value=\"")
                     .append(escapeXml(printer.getTitle())).append("\"/>\n");
         }
         sb.append("    <metadata key=\"nozzle_diameters\" value=\"")
                 .append(String.format(Locale.US, "%.1f", meta.nozzle)).append("\"/>\n");
+        sb.append("    <metadata key=\"timelapse_type\" value=\"0\"/>\n");
         sb.append("    <metadata key=\"prediction\" value=\"").append(meta.seconds).append("\"/>\n");
         sb.append("    <metadata key=\"weight\" value=\"").append(fmt(sum(meta.usedGrams))).append("\"/>\n");
+        sb.append("    <metadata key=\"outside\" value=\"false\"/>\n");
+        sb.append("    <metadata key=\"support_used\" value=\"false\"/>\n");
+        sb.append("    <metadata key=\"label_object_enabled\" value=\"true\"/>\n");
+        sb.append("    <metadata key=\"enable_filament_dynamic_map\" value=\"false\"/>\n");
+        sb.append("    <metadata key=\"has_filament_switcher\" value=\"false\"/>\n");
+        sb.append("    <metadata key=\"filament_maps\" value=\"").append(repeat("1", meta.materials.size())).append("\"/>\n");
+        sb.append("    <metadata key=\"limit_filament_maps\" value=\"").append(repeat("0", meta.materials.size())).append("\"/>\n");
+        sb.append("    <object identify_id=\"1\" name=\"").append(escapeXml(meta.objectName))
+                .append("\" skipped=\"false\" />\n");
         for (int i = 0; i < meta.materials.size(); i++) {
-            sb.append("    <filament id=\"").append(i + 1).append("\" tray_info_idx=\"\" type=\"")
-                    .append(escapeXml(meta.materials.get(i))).append("\" color=\"")
-                    .append(escapeXml(meta.colors.get(i))).append("\" used_m=\"")
-                    .append(fmt(i < meta.usedMeters.size() ? meta.usedMeters.get(i) : 0)).append("\" used_g=\"")
-                    .append(fmt(i < meta.usedGrams.size() ? meta.usedGrams.get(i) : 0)).append("\"/>\n");
+            sb.append("    <filament id=\"").append(i + 1)
+                    .append("\" tray_info_idx=\"\" type=\"").append(escapeXml(meta.materials.get(i)))
+                    .append("\" color=\"").append(escapeXml(meta.colors.get(i)))
+                    .append("\" used_m=\"").append(fmt(i < meta.usedMeters.size() ? meta.usedMeters.get(i) : 0))
+                    .append("\" used_g=\"").append(fmt(i < meta.usedGrams.size() ? meta.usedGrams.get(i) : 0))
+                    .append("\" group_id=\"0\" nozzle_diameter=\"").append(fmt(meta.nozzle))
+                    .append("\" volume_type=\"Standard\" used_for_object=\"true\" used_for_support=\"false\"/>\n");
         }
-        for (ObjectInfo object : objects) {
-            sb.append("    <object identify_id=\"").append(object.id).append("\" name=\"")
-                    .append(escapeXml(object.name)).append("\" skipped=\"false\"/>\n");
-        }
-        sb.append("  </plate>\n</slice_info>\n");
+        sb.append("    <nozzle id=\"0\" extruder_id=\"1\" nozzle_diameter=\"").append(String.format(Locale.US, "%.1f", meta.nozzle))
+                .append("\" volume_type=\"Standard\"/>\n");
+        sb.append("    <layer_filament_lists>\n");
+        sb.append("      <layer_filament_list filament_list=\"0\" layer_ranges=\"0 ")
+                .append(Math.max(0, meta.layers - 1)).append("\" />\n");
+        sb.append("    </layer_filament_lists>\n");
+        sb.append("  </plate>\n</config>\n");
         return sb.toString();
     }
 
+
+
+    /** Same object shape as the accepted package (a bare array is not what Orca writes). */
     private static String sequenceJson(PrintMetadata meta) {
-        StringBuilder sb = new StringBuilder("[\n");
-        for (int i = 0; i < meta.sequence.size(); i++) {
-            if (i > 0) sb.append(",\n");
-            sb.append("  ").append(meta.sequence.get(i));
-        }
-        sb.append("\n]\n");
-        return sb.toString();
+        return "{\"plate_" + PLATE + "\":{\"nozzle_sequence\":[0],\"optimal_assignment\":[0,0,0,0,0],"
+                + "\"sequence\":[" + (meta.sequence.isEmpty() ? 1 : meta.sequence.get(0) + 1) + "]}}";
     }
+
+
 
     // ---------------------------------------------------------------- helpers
 
@@ -570,16 +571,6 @@ public final class GCode3mfPackager {
         zip.putNextEntry(entry);
         zip.write(data);
         zip.closeEntry();
-    }
-
-    /** Object names are read from the model XML, so entities must be decoded before re-escaping. */
-    private static String unescapeXml(String value) {
-        if (value == null) return null;
-        return value.replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&quot;", "\"")
-                .replace("&apos;", "'")
-                .replace("&amp;", "&");
     }
 
     private static String escapeXml(String value) {
