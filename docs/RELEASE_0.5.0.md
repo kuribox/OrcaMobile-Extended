@@ -29,7 +29,7 @@ exportación real de `.gcode.3mf`.
 APK firmado con la clave de depuración: se instala encima de la versión de depuración sin
 desinstalar. Android 5.0+ (arm64-v8a).
 
-    b454d5dc379f124a6d8b453a118f6b8c011aa5164ca80bcbf4423fc7fb0c7a5b  OrcaSlicerMobile_0.5.0.apk   (compilado desde el commit bcc6c8e)
+    9e3013aeb303274ab5e4754c391b5821419f71b8fdaa1764b1bd8b7eff3e8b79  OrcaSlicerMobile_0.5.0.apk   (compilado desde el commit 00d8ab7)
 
 ## Límites conocidos
 
