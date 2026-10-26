@@ -43,8 +43,8 @@ Requirements: Android 5.0+, 64-bit ARM device (arm64-v8a).
 ## Build from source
 
 ```bash
-git clone https://github.com/kuribox/OrcaSlicer-Mobile-flashforge.git
-cd OrcaSlicer-Mobile-flashforge
+git clone https://github.com/kuribox/OrcaMobile-Extended.git
+cd OrcaMobile-Extended
 git submodule update --init --recursive
 ```
 

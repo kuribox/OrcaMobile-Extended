@@ -1,6 +1,6 @@
 # Plan del fork: Flashforge + español + .gcode.3mf
 
-Base: CodeMasterCody3D/OrcaSlicer-Mobile (master). Fork: kuribox/OrcaSlicer-Mobile-flashforge.
+Base: CodeMasterCody3D/OrcaSlicer-Mobile (master). Fork: kuribox/OrcaMobile-Extended.
 Impresoras objetivo: Flashforge Adventurer 5M / 5M Pro / AD5X (API HTTP local, puerto 8898).
 
 ## Fase 0 — Entorno y build base (bloqueante)
@@ -62,7 +62,7 @@ cuando `use_3mf` está activo (`Flashforge.cpp`, extensión `.3mf`).
 
 - Actualizar `README.md`: nombre del fork, Flashforge, idioma español, `.gcode.3mf`, requisitos de build
   reales (NDK/SDK de `app/build.gradle`), créditos al upstream y a OrcaSlicer (AGPL-3.0).
-- Subir a `kuribox/OrcaSlicer-Mobile-flashforge` en ramas por fase (ver bloqueo de push abajo).
+- Subir a `kuribox/OrcaMobile-Extended` en ramas por fase.
 
 ## Estado actual (fase 0 cerrada por vía prebuilt)
 
