@@ -36,7 +36,12 @@ OrcaSlicer Mobile takes the excellent Android slicer shell from [Slice Beam](htt
 
 ## Install
 
-Download the latest APK from the [Releases](../../releases) page and sideload it (you may need to allow "install from unknown sources").
+Download the latest APK from the [Releases](../../releases) page and sideload it (you may need to allow
+"install from unknown sources").
+
+Every release is published as a **pre-release (alpha)**: the slicing engine and the printer upload work,
+but the output is not production quality — check the G-code preview before starting a print. GitHub hides
+pre-releases from the "Latest" slot on the repository page, so grab the APK from the Releases tab.
 
 Requirements: Android 5.0+, 64-bit ARM device (arm64-v8a).
 
