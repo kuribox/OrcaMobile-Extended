@@ -43,6 +43,7 @@ public class PrinterConfigFragment extends ProfileListFragment {
 
     @Override
     protected List<OptionElement> getConfigItems() {
+        migrateLegacyFlashforgeKeys();
         PrintConfigDef def = PrintConfigDef.getInstance();
         ArrayList<OptionElement> list = new ArrayList<>(Arrays.asList(
                 new OptionElement(R.drawable.printer_outline_28, "General"),
@@ -286,6 +287,34 @@ public class PrinterConfigFragment extends ProfileListFragment {
                 .setSubtitle(describeHost());
         item.setOnClickListener(v -> runHostTest());
         return item;
+    }
+
+    /**
+     * Earlier builds of this fork stored the Flashforge serial in printhost_user and the check code in
+     * printhost_password. Profiles saved then would look empty to the current code, so copy the values
+     * across (only when the current key has nothing) before the screen reads them.
+     */
+    private void migrateLegacyFlashforgeKeys() {
+        if (currentConfig == null) return;
+        boolean changed = false;
+        changed |= copyIfMissing("printhost_user", "flashforge_serial_number");
+        changed |= copyIfMissing("printhost_password", "printhost_apikey");
+        if (changed) {
+            ConfigObject stored = SliceBeam.CONFIG.findPrinter(currentConfig.getTitle());
+            if (stored != null && stored != currentConfig) {
+                stored.values.putAll(currentConfig.values);
+            }
+            SliceBeam.saveConfig();
+        }
+    }
+
+    private boolean copyIfMissing(String legacyKey, String currentKey) {
+        String current = currentConfig.get(currentKey);
+        if (!blank(current)) return false;
+        String legacy = currentConfig.get(legacyKey);
+        if (blank(legacy)) return false;
+        currentConfig.values.put(currentKey, legacy);
+        return true;
     }
 
     /**

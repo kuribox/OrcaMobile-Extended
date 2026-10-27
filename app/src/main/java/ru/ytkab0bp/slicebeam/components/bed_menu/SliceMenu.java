@@ -214,12 +214,19 @@ public class SliceMenu extends ListBedMenu {
         }, "flashforge-serial-upload").start();
     }
 
+    private static String firstNonEmpty(String first, String second) {
+        return TextUtils.isEmpty(first) ? (second == null ? "" : second) : first;
+    }
+
     private void uploadFlashforge(String host, String apiKey, boolean print, String name) {
         final ConfigObject printer = SliceBeam.CONFIG.findPrinter(SliceBeam.CONFIG.presets.get("printer"));
         // Same configuration keys as desktop OrcaSlicer: the printer serial lives in
         // flashforge_serial_number and the check code in printhost_apikey.
-        final String serialNumber = printer != null ? printer.get("flashforge_serial_number") : "";
-        final String checkCode = printer != null ? printer.get("printhost_apikey") : "";
+        // Profiles saved by earlier builds kept these values under printhost_user / printhost_password.
+        final String serialNumber = printer == null ? "" : firstNonEmpty(
+                printer.get("flashforge_serial_number"), printer.get("printhost_user"));
+        final String checkCode = printer == null ? "" : firstNonEmpty(
+                printer.get("printhost_apikey"), printer.get("printhost_password"));
 
         // Without serial + check code the local HTTP API cannot be used. Desktop falls back to the
         // legacy console protocol on TCP 8899, which needs no credentials, so do the same instead of
