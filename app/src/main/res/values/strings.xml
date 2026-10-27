@@ -192,7 +192,6 @@
     <string name="MenuPrinterTestOKTitle">Connection OK</string>
     <string name="MenuPrinterTestFailedTitle">Connection failed</string>
     <string name="PrinterTestNoHost">The print host address is empty.</string>
-    <string name="PrinterTestFlashforgeMissingCreds">Flashforge needs the serial number and the access code.</string>
     <string name="PrinterTestFlashforgeError">The printer rejected the request (%1$d): %2$s</string>
     <string name="PrinterTestOK">Connected: %1$s</string>
     <string name="PrinterTestMoonrakerOK">Moonraker %1$s</string>

@@ -74,8 +74,10 @@ public final class PrintHostTester {
                 // flashforge_serial_number; /detail wants both. Without them the desktop tests the
                 // console on TCP 8899 instead of failing, so do the same.
                 if (TextUtils.isEmpty(flashforgeSerialNumber) || TextUtils.isEmpty(apiKey)) {
-                    FlashforgeSerial.Result serial = FlashforgeSerial.ping(hostAndPort(host).replaceAll(":\\d+$", ""));
-                    return new Result(serial.ok, serial.message);
+                    String bareHost = hostAndPort(host).replaceAll(":\\d+$", "");
+                    FlashforgeSerial.Result serial = FlashforgeSerial.ping(bareHost);
+                    return new Result(serial.ok, serial.message
+                            + (serial.ok ? " (TCP 8899)" : ""));
                 }
                 return testFlashforge(host, flashforgeSerialNumber, apiKey);
             case "moonraker":
@@ -106,8 +108,10 @@ public final class PrintHostTester {
 
     private static Result testFlashforge(String baseUrl, String serial, String checkCode) throws Exception {
         if (TextUtils.isEmpty(serial) || TextUtils.isEmpty(checkCode)) {
-            return new Result(false, SliceBeam.INSTANCE.getString(
-                    ru.ytkab0bp.slicebeam.R.string.PrinterTestFlashforgeMissingCreds));
+            // Should not happen: the caller falls back to the TCP 8899 console instead.
+            return new Result(false, SliceBeam.INSTANCE.getString(TextUtils.isEmpty(serial)
+                    ? ru.ytkab0bp.slicebeam.R.string.PrinterTestMissingSerial
+                    : ru.ytkab0bp.slicebeam.R.string.PrinterTestMissingCheckCode));
         }
         String host = hostAndPort(baseUrl);
         if (!host.contains(":")) {

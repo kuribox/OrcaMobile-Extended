@@ -192,7 +192,6 @@
     <string name="MenuPrinterTestOKTitle">Conexión correcta</string>
     <string name="MenuPrinterTestFailedTitle">Conexión fallida</string>
     <string name="PrinterTestNoHost">La dirección del host está vacía.</string>
-    <string name="PrinterTestFlashforgeMissingCreds">Flashforge necesita el número de serie y el código de acceso.</string>
     <string name="PrinterTestFlashforgeError">La impresora rechazó la petición (%1$d): %2$s</string>
     <string name="PrinterTestOK">Conectado: %1$s</string>
     <string name="PrinterTestMoonrakerOK">Moonraker %1$s</string>
