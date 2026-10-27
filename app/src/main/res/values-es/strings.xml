@@ -318,4 +318,11 @@
     <string name="PrinterDiscoverFlashforgeRunning">Buscando en la red local…</string>
     <string name="PrinterDiscoverFlashforgeNone">No se encontraron impresoras Flashforge en la red local.</string>
     <string name="PrinterDiscoverFlashforgePick">Selecciona una impresora Flashforge</string>
+    <string name="PrinterTestIncomplete">falta el código</string>
+    <string name="PrinterTestMissingHost">Falta la dirección de la impresora.\n\nPulsa \"Buscar impresoras Flashforge\" o escribe la IP en Print host.</string>
+    <string name="PrinterTestMissingSerial">Falta el número de serie.\n\nPulsa \"Buscar impresoras Flashforge\": se lee de la impresora y se rellena solo.</string>
+    <string name="PrinterTestMissingCheckCode">Falta el código de verificación.\n\nEscríbelo en \"API key\": la impresora lo muestra en su pantalla de red, junto al número de serie.</string>
+    <string name="MenuSliceSendNoGcode">No hay G-code laminado que enviar. Lamina el modelo primero.</string>
+    <string name="PrinterTestTransportHttp">HTTP 8898</string>
+    <string name="PrinterTestTransportSerial">serie TCP 8899</string>
 </resources>

@@ -66,6 +66,7 @@ import ru.ytkab0bp.slicebeam.slic3r.GCodeViewer;
 import ru.ytkab0bp.slicebeam.slic3r.Slic3rLocalization;
 import ru.ytkab0bp.slicebeam.theme.IThemeView;
 import ru.ytkab0bp.slicebeam.theme.ThemesRepo;
+import ru.ytkab0bp.slicebeam.utils.FlashforgeSerial;
 import ru.ytkab0bp.slicebeam.utils.GCode3mfPackager;
 import ru.ytkab0bp.slicebeam.utils.GCodeStats;
 import ru.ytkab0bp.slicebeam.utils.ViewLegend;
@@ -172,6 +173,47 @@ public class SliceMenu extends ListBedMenu {
         }
     }
 
+    /**
+     * Legacy Flashforge upload: plain G-code over the TCP 8899 console (~M28 / data / ~M29 / ~M23).
+     * Used when the printer has no check code configured, exactly like desktop OrcaSlicer.
+     */
+    private void uploadFlashforgeSerial(String host, boolean print) {
+        final String bareHost = host.replaceFirst("(?i)^https?://", "").replaceAll("[:/].*$", "");
+        final File gcode = BedFragment.getTempGCodePath();
+        if (gcode == null || !gcode.isFile()) {
+            ViewUtils.postOnMainThread(() -> new BeamAlertDialogBuilder(fragment.getContext())
+                    .setTitle(R.string.MenuSliceSendToPrinterFailed)
+                    .setMessage(R.string.MenuSliceSendNoGcode)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show());
+            return;
+        }
+
+        final String tag = UUID.randomUUID().toString();
+        SliceBeam.EVENT_BUS.fireEvent(new NeedSnackbarEvent(SnackbarsLayout.Type.LOADING,
+                R.string.MenuSliceSendToPrinterLoading).tag(tag));
+
+        new Thread(() -> {
+            String remoteName = gcode.getName();
+            if (!remoteName.toLowerCase(Locale.ROOT).endsWith(".gcode")) remoteName += ".gcode";
+            FlashforgeSerial.Result result = FlashforgeSerial.upload(bareHost, gcode, remoteName, print, null);
+            ViewUtils.postOnMainThread(() -> {
+                SliceBeam.EVENT_BUS.fireEvent(new NeedDismissSnackbarEvent(tag));
+                if (result.ok) {
+                    SliceBeam.EVENT_BUS.fireEvent(new NeedSnackbarEvent(
+                            print ? SnackbarsLayout.Type.INFO : SnackbarsLayout.Type.DONE,
+                            print ? R.string.MenuSliceSendToPrinterPrintStarted : R.string.MenuSliceSendToPrinterOK));
+                } else {
+                    new BeamAlertDialogBuilder(fragment.getContext())
+                            .setTitle(R.string.MenuSliceSendToPrinterFailed)
+                            .setMessage(result.message)
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show();
+                }
+            });
+        }, "flashforge-serial-upload").start();
+    }
+
     private void uploadFlashforge(String host, String apiKey, boolean print, String name) {
         final ConfigObject printer = SliceBeam.CONFIG.findPrinter(SliceBeam.CONFIG.presets.get("printer"));
         // Same configuration keys as desktop OrcaSlicer: the printer serial lives in
@@ -179,12 +221,11 @@ public class SliceMenu extends ListBedMenu {
         final String serialNumber = printer != null ? printer.get("flashforge_serial_number") : "";
         final String checkCode = printer != null ? printer.get("printhost_apikey") : "";
 
+        // Without serial + check code the local HTTP API cannot be used. Desktop falls back to the
+        // legacy console protocol on TCP 8899, which needs no credentials, so do the same instead of
+        // refusing to send.
         if (TextUtils.isEmpty(serialNumber) || TextUtils.isEmpty(checkCode)) {
-            ViewUtils.postOnMainThread(() -> new BeamAlertDialogBuilder(fragment.getContext())
-                    .setTitle(R.string.MenuSliceSendToPrinterFailed)
-                    .setMessage(R.string.PrinterTestFlashforgeMissingCreds)
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show());
+            uploadFlashforgeSerial(host, print);
             return;
         }
 

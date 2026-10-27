@@ -71,7 +71,12 @@ public final class PrintHostTester {
         switch (type) {
             case "flashforge":
                 // Desktop stores the check code in printhost_apikey and the serial in
-                // flashforge_serial_number; /detail wants both.
+                // flashforge_serial_number; /detail wants both. Without them the desktop tests the
+                // console on TCP 8899 instead of failing, so do the same.
+                if (TextUtils.isEmpty(flashforgeSerialNumber) || TextUtils.isEmpty(apiKey)) {
+                    FlashforgeSerial.Result serial = FlashforgeSerial.ping(hostAndPort(host).replaceAll(":\\d+$", ""));
+                    return new Result(serial.ok, serial.message);
+                }
                 return testFlashforge(host, flashforgeSerialNumber, apiKey);
             case "moonraker":
                 return testMoonraker(host, apiKey);

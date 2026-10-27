@@ -288,24 +288,68 @@ public class PrinterConfigFragment extends ProfileListFragment {
         return item;
     }
 
+    /**
+     * Value the user currently sees: pending edits (typed fields, discovery results) win over the saved
+     * profile. Reading currentConfig here was the bug that made the test claim fields were empty right
+     * after discovery had filled the serial number in.
+     */
+    private String effective(String key) {
+        if (key == null) return null;
+        if (diffObject != null && diffObject.has(key)) {
+            return diffObject.get(key);
+        }
+        return currentConfig != null ? currentConfig.get(key) : null;
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
     private String describeHost() {
         if (currentConfig == null) return "";
-        String type = currentConfig.get("host_type");
-        String host = currentConfig.get("print_host");
-        if (type == null || type.isEmpty()) type = "octoprint";
-        if (host == null || host.isEmpty()) {
+        String type = effective("host_type");
+        String host = effective("print_host");
+        if (blank(type)) type = "octoprint";
+        if (blank(host)) {
             return SliceBeam.INSTANCE.getString(R.string.MenuPrinterTestNoHostHint);
         }
-        return type + " · " + host;
+        StringBuilder sb = new StringBuilder(type).append(" · ").append(host.trim());
+        if ("flashforge".equalsIgnoreCase(type)) {
+            boolean http = !blank(effective("flashforge_serial_number")) && !blank(effective("printhost_apikey"));
+            sb.append(" · ").append(SliceBeam.INSTANCE.getString(
+                    http ? R.string.PrinterTestTransportHttp : R.string.PrinterTestTransportSerial));
+        }
+        return sb.toString();
+    }
+
+    /** Returns the resource id of the exact missing field, or 0 when the host is complete. */
+    private int missingHostField(String type, String host, String serialNumber, String checkCode) {
+        if (blank(host)) {
+            return R.string.PrinterTestMissingHost;
+        }
+        // Flashforge without serial/check code is not an error: the legacy console protocol on
+        // TCP 8899 needs no credentials, which is what desktop OrcaSlicer falls back to.
+        return 0;
     }
 
     private void runHostTest() {
         final android.content.Context ctx = getContext();
         if (ctx == null) return;
-        String type = currentConfig != null ? currentConfig.get("host_type") : null;
-        String host = currentConfig != null ? currentConfig.get("print_host") : null;
-        String apiKey = currentConfig != null ? currentConfig.get("printhost_apikey") : null;
-        String serialNumber = currentConfig != null ? currentConfig.get("flashforge_serial_number") : null;
+
+        final String type = effective("host_type");
+        final String host = effective("print_host");
+        final String apiKey = effective("printhost_apikey");
+        final String serialNumber = effective("flashforge_serial_number");
+
+        int missing = missingHostField(type, host, serialNumber, apiKey);
+        if (missing != 0) {
+            new BeamAlertDialogBuilder(ctx)
+                    .setTitle(R.string.MenuPrinterTestFailedTitle)
+                    .setMessage(missing)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show();
+            return;
+        }
 
         final AlertDialog dialog = new BeamAlertDialogBuilder(ctx)
                 .setTitle(R.string.MenuPrinterTestConnection)

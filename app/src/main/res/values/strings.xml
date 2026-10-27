@@ -318,4 +318,11 @@
     <string name="PrinterDiscoverFlashforgeRunning">Searching the local network…</string>
     <string name="PrinterDiscoverFlashforgeNone">No Flashforge printers were discovered on the local network.</string>
     <string name="PrinterDiscoverFlashforgePick">Select a Flashforge printer</string>
+    <string name="PrinterTestIncomplete">check code pending</string>
+    <string name="PrinterTestMissingHost">The printer address is empty.\n\nTap \"Find Flashforge printers\" or type the IP in Print host.</string>
+    <string name="PrinterTestMissingSerial">The serial number is missing.\n\nTap \"Find Flashforge printers\": it is read from the printer and filled in for you.</string>
+    <string name="PrinterTestMissingCheckCode">The check code is missing.\n\nType it in \"API key\": the printer shows it on its network screen, next to the serial number.</string>
+    <string name="MenuSliceSendNoGcode">There is no sliced G-code to send. Slice the model first.</string>
+    <string name="PrinterTestTransportHttp">HTTP 8898</string>
+    <string name="PrinterTestTransportSerial">serial TCP 8899</string>
 </resources>
