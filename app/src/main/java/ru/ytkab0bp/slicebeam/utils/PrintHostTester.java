@@ -76,8 +76,13 @@ public final class PrintHostTester {
                 if (TextUtils.isEmpty(flashforgeSerialNumber) || TextUtils.isEmpty(apiKey)) {
                     String bareHost = hostAndPort(host).replaceAll(":\\d+$", "");
                     FlashforgeSerial.Result serial = FlashforgeSerial.ping(bareHost);
-                    return new Result(serial.ok, serial.message
-                            + (serial.ok ? " (TCP 8899)" : ""));
+                    if (serial.ok) {
+                        return new Result(true, serial.message + " (TCP 8899, sin código)");
+                    }
+                    // No credentials and no console: the only remaining route is the local HTTP API,
+                    // which does need the check code.
+                    return new Result(false, serial.message + "\n\n"
+                            + SliceBeam.INSTANCE.getString(ru.ytkab0bp.slicebeam.R.string.PrinterTestConsoleClosedHint));
                 }
                 return testFlashforge(host, flashforgeSerialNumber, apiKey);
             case "moonraker":

@@ -324,4 +324,5 @@
     <string name="MenuSliceSendNoGcode">No hay G-code laminado que enviar. Lamina el modelo primero.</string>
     <string name="PrinterTestTransportHttp">HTTP 8898</string>
     <string name="PrinterTestTransportSerial">serie TCP 8899</string>
+    <string name="PrinterTestConsoleClosedHint">Si esta impresora tiene el puerto 8899 cerrado, sólo acepta la API HTTP local (8898), que necesita el código de verificación en \"API key\".</string>
 </resources>

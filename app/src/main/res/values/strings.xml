@@ -324,4 +324,5 @@
     <string name="MenuSliceSendNoGcode">There is no sliced G-code to send. Slice the model first.</string>
     <string name="PrinterTestTransportHttp">HTTP 8898</string>
     <string name="PrinterTestTransportSerial">serial TCP 8899</string>
+    <string name="PrinterTestConsoleClosedHint">If port 8899 is closed on this printer, it only accepts the local HTTP API (8898), which requires the check code in "API key".</string>
 </resources>
