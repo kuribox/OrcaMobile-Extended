@@ -395,4 +395,5 @@
     <string name="WizardDurationHours">%1$d h %2$d min</string>
     <string name="WizardDurationMinutes">%1$d min</string>
     <string name="WizardLoadingModel">Cargando el modelo…</string>
+    <string name="WizardOpenFailed">No se pudo abrir el asistente</string>
 </resources>

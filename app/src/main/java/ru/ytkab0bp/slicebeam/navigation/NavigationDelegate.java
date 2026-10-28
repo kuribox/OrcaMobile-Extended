@@ -200,8 +200,21 @@ public abstract class NavigationDelegate {
 
         Fragment prev = fragmentStack.get(currentSlot).get(fragmentStack.get(currentSlot).size() - 2);
 
-        View wasView = container.getChildAt(0);
-        View newView = prev.getView();
+        View wasView = container.getChildCount() > 0
+                ? container.getChildAt(container.getChildCount() - 1) : null;
+        View prevView = prev.getView();
+        if (prevView == null) {
+            // The previous screen was never created: rebuild it instead of animating nothing.
+            prevView = prev.onCreateView(context);
+            prev.onViewCreated(prevView);
+            prev.onApplyTheme();
+        }
+        final View newView = prevView;
+        // Pushed screens leave the previous view out of the hierarchy (and transparent).
+        newView.setAlpha(0f);
+        newView.setTranslationX(0f);
+        newView.setTranslationY(0f);
+        container.addView(newView);
 
         switchAnimation = new SpringAnimation(new FloatValueHolder(0))
                 .setMinimumVisibleChange(1 / 256f)
@@ -211,19 +224,24 @@ public abstract class NavigationDelegate {
                 .addUpdateListener((animation, value, velocity) -> {
                     float fValue = 1f - value;
 
+                    if (wasView != null) {
+                        if (isSwitchingWithX()) {
+                            wasView.setTranslationX(-fValue * wasView.getWidth() * 0.75f);
+                        } else {
+                            wasView.setTranslationY(-fValue * wasView.getHeight() * 0.75f);
+                        }
+                        wasView.setAlpha(1f - value);
+                    }
                     if (isSwitchingWithX()) {
-                        wasView.setTranslationX(-fValue * wasView.getWidth() * 0.75f);
                         newView.setTranslationX((1f - fValue) * newView.getWidth() * 0.75f);
                     } else {
-                        wasView.setTranslationY(-fValue * wasView.getHeight() * 0.75f);
                         newView.setTranslationY((1f - fValue) * newView.getHeight() * 0.75f);
                     }
-                    wasView.setAlpha(1f - value);
                     newView.setAlpha(value);
                 })
                 .addEndListener((animation, canceled, value, velocity) -> {
                     switchAnimation = null;
-                    container.removeView(wasView);
+                    if (wasView != null) container.removeView(wasView);
                     prev.onResume();
                     fr.onDestroy();
                 });
@@ -237,11 +255,16 @@ public abstract class NavigationDelegate {
         fragment.onCreate();
 
         fragmentStack.get(currentSlot).peek().onPause();
-        View wasView = container.getChildAt(0);
+        View wasView = container.getChildCount() > 0
+                ? container.getChildAt(container.getChildCount() - 1) : null;
         View newView = fragment.onCreateView(context);
         fragment.onViewCreated(newView);
         fragment.onApplyTheme();
         fragmentStack.get(currentSlot).push(fragment);
+
+        // The pushed screen has to enter the hierarchy, on top of the current one.
+        newView.setAlpha(0f);
+        container.addView(newView);
 
         switchAnimation = new SpringAnimation(new FloatValueHolder(0))
                 .setMinimumVisibleChange(1 / 256f)
@@ -249,19 +272,24 @@ public abstract class NavigationDelegate {
                         .setStiffness(1000f)
                         .setDampingRatio(1f))
                 .addUpdateListener((animation, value, velocity) -> {
+                    if (wasView != null) {
+                        if (isSwitchingWithX()) {
+                            wasView.setTranslationX(-value * wasView.getWidth() * 0.75f);
+                        } else {
+                            wasView.setTranslationY(-value * wasView.getHeight() * 0.75f);
+                        }
+                        wasView.setAlpha(1f - value);
+                    }
                     if (isSwitchingWithX()) {
-                        wasView.setTranslationX(-value * wasView.getWidth() * 0.75f);
                         newView.setTranslationX((1f - value) * newView.getWidth() * 0.75f);
                     } else {
-                        wasView.setTranslationY(-value * wasView.getHeight() * 0.75f);
                         newView.setTranslationY((1f - value) * newView.getHeight() * 0.75f);
                     }
-                    wasView.setAlpha(1f - value);
                     newView.setAlpha(value);
                 })
                 .addEndListener((animation, canceled, value, velocity) -> {
                     switchAnimation = null;
-                    container.removeView(wasView);
+                    if (wasView != null) container.removeView(wasView);
                     fragment.onResume();
                 });
         switchAnimation.start();
