@@ -149,7 +149,7 @@
     <string name="MenuTransformMirrorY">Espejo Y</string>
     <string name="MenuTransformMirrorZ">Espejo Z</string>
     <string name="MenuModifiers">Modificadores</string>
-    <string name="MenuSlice">Cortar</string>
+    <string name="MenuSlice">Laminar</string>
     <string name="MenuSliceInfo">Info\nimpresión</string>
     <string name="MenuSliceInfoSecond">s.</string>
     <string name="MenuSliceInfoMinute">min.</string>

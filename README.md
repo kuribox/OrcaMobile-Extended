@@ -36,6 +36,8 @@ OrcaSlicer Mobile takes the excellent Android slicer shell from [Slice Beam](htt
 
 ## Install
 
+Guía en español para principiantes: [docs/GUIA_PRINCIPIANTE_ES.md](docs/GUIA_PRINCIPIANTE_ES.md).
+
 Download the latest APK from the [Releases](../../releases) page and sideload it (you may need to allow
 "install from unknown sources").
 
