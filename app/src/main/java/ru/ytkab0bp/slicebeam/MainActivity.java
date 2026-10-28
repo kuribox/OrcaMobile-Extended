@@ -88,7 +88,8 @@ public class MainActivity extends AppCompatActivity {
     public final static int REQUEST_CODE_OPEN_FILE = 1, REQUEST_CODE_EXPORT_GCODE = 2,
                             REQUEST_CODE_IMPORT_PROFILES = 3, REQUEST_CODE_EXPORT_PROFILES = 4,
                             REQUEST_CODE_EXPORT_3MF = 5,
-                            REQUEST_CODE_AI_GENERATOR_TAKE_PHOTO = 6, REQUEST_CODE_AI_GENERATOR_CHOOSE_PHOTO = 7;
+                            REQUEST_CODE_AI_GENERATOR_TAKE_PHOTO = 6, REQUEST_CODE_AI_GENERATOR_CHOOSE_PHOTO = 7,
+                            REQUEST_CODE_WIZARD_FILE = 8;
 
     private static MainActivity activeInstance;
 
@@ -277,6 +278,11 @@ public class MainActivity extends AppCompatActivity {
                     out.close();
                 } catch (IOException e) {
                     throw new RuntimeException(e);
+                }
+            } else if (requestCode == MainActivity.REQUEST_CODE_WIZARD_FILE) {
+                Fragment current = getNavigationDelegate().getCurrentFragment();
+                if (current instanceof ru.ytkab0bp.slicebeam.fragment.WizardFragment) {
+                    ((ru.ytkab0bp.slicebeam.fragment.WizardFragment) current).onModelPicked(data.getData());
                 }
             } else if (requestCode == MainActivity.REQUEST_CODE_OPEN_FILE) {
                 loadFile(data.getData());

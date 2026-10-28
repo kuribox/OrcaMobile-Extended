@@ -99,10 +99,22 @@ public class FileMenu extends ListBedMenu {
         return hasModel() && fragment.getGlView().getRenderer().getSelectedObject() != -1;
     }
 
+
+    /** Guided mode: model → printer → simple questions → filament → slice → send. */
+    private void openWizard() {
+        if (fragment.getContext() instanceof ru.ytkab0bp.slicebeam.MainActivity) {
+            ((ru.ytkab0bp.slicebeam.MainActivity) fragment.getContext())
+                    .getNavigationDelegate()
+                    .pushFragment(new ru.ytkab0bp.slicebeam.fragment.WizardFragment());
+        }
+    }
+
     @Override
     protected List<SimpleRecyclerItem> onCreateItems(boolean portrait) {
         wasPortrait = portrait;
         List<SimpleRecyclerItem> list = new ArrayList<>(Arrays.asList(
+                new BedMenuItem(R.string.MenuWizard, R.drawable.magic_wand_outline_28).setShiny(true)
+                        .onClick(v -> openWizard()),
                 new BedMenuItem(R.string.MenuFileOpen, R.drawable.folder_simple_plus_outline_28).onClick(v -> {
                     if (!fragment.getGlView().getRenderer().getBed().isValid()) {
                         Toast.makeText(fragment.getContext(), R.string.BedConfigurationError, Toast.LENGTH_SHORT).show();

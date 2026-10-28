@@ -178,6 +178,14 @@ public abstract class NavigationDelegate {
         }
     }
 
+    /** Fragment at the given index of a slot's stack (0 = the slot's root screen). */
+    public Fragment getFragmentAt(int slot, int index) {
+        Stack<Fragment> stack = fragmentStack.get(slot);
+        if (stack == null || stack.isEmpty()) return null;
+        if (index < 0 || index >= stack.size()) return stack.peek();
+        return stack.get(index);
+    }
+
     public Fragment getCurrentFragment() {
         return fragmentStack.get(currentSlot).peek();
     }

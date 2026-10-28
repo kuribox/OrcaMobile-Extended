@@ -69,6 +69,7 @@ import ru.ytkab0bp.slicebeam.theme.ThemesRepo;
 import ru.ytkab0bp.slicebeam.utils.FlashforgeSerial;
 import ru.ytkab0bp.slicebeam.utils.GCode3mfPackager;
 import ru.ytkab0bp.slicebeam.utils.GCodeStats;
+import ru.ytkab0bp.slicebeam.utils.HostTransfer;
 import ru.ytkab0bp.slicebeam.utils.ViewLegend;
 import ru.ytkab0bp.slicebeam.utils.Prefs;
 import ru.ytkab0bp.slicebeam.utils.ViewUtils;
@@ -115,204 +116,37 @@ public class SliceMenu extends ListBedMenu {
         String apiKey = obj.get("printhost_apikey");
         if (SUPPORTED_SEND.contains(type) && !TextUtils.isEmpty(host)) {
             String finalType = type;
-            items.add(new BedMenuItem(R.string.MenuSliceSendToPrinter, R.drawable.send_outline_28).onClick(v -> upload(finalType, host, apiKey, false)));
-            items.add(new BedMenuItem(R.string.MenuSliceSendToPrinterAndPrint, R.drawable.send_28).onClick(v -> upload(finalType, host, apiKey, true)));
+            items.add(new BedMenuItem(R.string.MenuSliceSendToPrinter, R.drawable.send_outline_28).onClick(v -> upload(false)));
+            items.add(new BedMenuItem(R.string.MenuSliceSendToPrinterAndPrint, R.drawable.send_28).onClick(v -> upload(true)));
         }
         return items;
     }
 
-    private void upload(String type, String host, String apiKey, boolean print) {
-        String name = fragment.getGlView().getRenderer().getGcodeResult().getRecommendedName();
-        switch (type) {
-            default:
-            case "octoprint":
-                if (!host.startsWith("http://")) {
-                    host = "http://" + host;
-                }
-                String tag = UUID.randomUUID().toString();
-                SliceBeam.EVENT_BUS.fireEvent(new NeedSnackbarEvent(SnackbarsLayout.Type.LOADING, R.string.MenuSliceSendToPrinterLoading).tag(tag));
-                Header[] headers = TextUtils.isEmpty(apiKey) ? new Header[0] : new Header[] {new BasicHeader("X-Api-Key", apiKey)};
-                RequestParams params = new RequestParams();
-                try {
-                    params.put("file", new FileInputStream(BedFragment.getTempGCodePath()), name, ContentType.TEXT_PLAIN.getMimeType());
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException(e);
-                }
-                params.put("select", String.valueOf(print));
-                params.put("print", String.valueOf(print));
-
-                client.post(SliceBeam.INSTANCE, host + "/api/files/local", headers, params, null, new AsyncHttpResponseHandler() {
-                    @Override
-                    public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                        try {
-                            JSONObject obj = new JSONObject(new String(responseBody));
-                            if (!obj.has("action") && !obj.has("files")) {
-                                throw new JSONException(obj.toString());
-                            }
-                            SliceBeam.EVENT_BUS.fireEvent(new NeedDismissSnackbarEvent(tag));
-                            SliceBeam.EVENT_BUS.fireEvent(new NeedSnackbarEvent(print ? SnackbarsLayout.Type.INFO : SnackbarsLayout.Type.DONE, print ? R.string.MenuSliceSendToPrinterPrintStarted : R.string.MenuSliceSendToPrinterOK));
-                        } catch (JSONException e) {
-                            onFailure(statusCode, headers, responseBody, e);
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                        SliceBeam.EVENT_BUS.fireEvent(new NeedDismissSnackbarEvent(tag));
-                        ViewUtils.postOnMainThread(() -> new BeamAlertDialogBuilder(fragment.getContext())
-                                .setTitle(R.string.MenuSliceSendToPrinterFailed)
-                                .setMessage(error.toString())
-                                .setPositiveButton(android.R.string.ok, null)
-                                .show());
-                    }
-                });
-                break;
-            case "flashforge":
-                uploadFlashforge(host, apiKey, print, name);
-                break;
-        }
-    }
-
     /**
-     * Legacy Flashforge upload: plain G-code over the TCP 8899 console (~M28 / data / ~M29 / ~M23).
-     * Used when the printer has no check code configured, exactly like desktop OrcaSlicer.
+     * Upload to the configured host. The protocols themselves live in HostTransfer so the guided
+     * assistant and this menu cannot drift apart.
      */
-    private void uploadFlashforgeSerial(String host, boolean print) {
-        final String bareHost = host.replaceFirst("(?i)^https?://", "").replaceAll("[:/].*$", "");
-        final File gcode = BedFragment.getTempGCodePath();
-        if (gcode == null || !gcode.isFile()) {
-            ViewUtils.postOnMainThread(() -> new BeamAlertDialogBuilder(fragment.getContext())
-                    .setTitle(R.string.MenuSliceSendToPrinterFailed)
-                    .setMessage(R.string.MenuSliceSendNoGcode)
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show());
-            return;
-        }
-
+    private void upload(boolean print) {
         final String tag = UUID.randomUUID().toString();
         SliceBeam.EVENT_BUS.fireEvent(new NeedSnackbarEvent(SnackbarsLayout.Type.LOADING,
                 R.string.MenuSliceSendToPrinterLoading).tag(tag));
 
         new Thread(() -> {
-            String remoteName = gcode.getName();
-            if (!remoteName.toLowerCase(Locale.ROOT).endsWith(".gcode")) remoteName += ".gcode";
-            FlashforgeSerial.Result result = FlashforgeSerial.upload(bareHost, gcode, remoteName, print, null);
-            ViewUtils.postOnMainThread(() -> {
+            HostTransfer.send(fragment, print, true, (ok, message) -> ViewUtils.postOnMainThread(() -> {
                 SliceBeam.EVENT_BUS.fireEvent(new NeedDismissSnackbarEvent(tag));
-                if (result.ok) {
+                if (ok) {
                     SliceBeam.EVENT_BUS.fireEvent(new NeedSnackbarEvent(
                             print ? SnackbarsLayout.Type.INFO : SnackbarsLayout.Type.DONE,
                             print ? R.string.MenuSliceSendToPrinterPrintStarted : R.string.MenuSliceSendToPrinterOK));
                 } else {
                     new BeamAlertDialogBuilder(fragment.getContext())
                             .setTitle(R.string.MenuSliceSendToPrinterFailed)
-                            .setMessage(result.message)
+                            .setMessage(message)
                             .setPositiveButton(android.R.string.ok, null)
                             .show();
                 }
-            });
-        }, "flashforge-serial-upload").start();
-    }
-
-    private static String firstNonEmpty(String first, String second) {
-        return TextUtils.isEmpty(first) ? (second == null ? "" : second) : first;
-    }
-
-    private void uploadFlashforge(String host, String apiKey, boolean print, String name) {
-        final ConfigObject printer = SliceBeam.CONFIG.findPrinter(SliceBeam.CONFIG.presets.get("printer"));
-        // Same configuration keys as desktop OrcaSlicer: the printer serial lives in
-        // flashforge_serial_number and the check code in printhost_apikey.
-        // Profiles saved by earlier builds kept these values under printhost_user / printhost_password.
-        final String serialNumber = printer == null ? "" : firstNonEmpty(
-                printer.get("flashforge_serial_number"), printer.get("printhost_user"));
-        final String checkCode = printer == null ? "" : firstNonEmpty(
-                printer.get("printhost_apikey"), printer.get("printhost_password"));
-
-        // Without serial + check code the local HTTP API cannot be used. Desktop falls back to the
-        // legacy console protocol on TCP 8899, which needs no credentials, so do the same instead of
-        // refusing to send.
-        if (TextUtils.isEmpty(serialNumber) || TextUtils.isEmpty(checkCode)) {
-            uploadFlashforgeSerial(host, print);
-            return;
-        }
-
-        final String tag = UUID.randomUUID().toString();
-        SliceBeam.EVENT_BUS.fireEvent(new NeedSnackbarEvent(SnackbarsLayout.Type.LOADING, R.string.MenuSliceSendToPrinterLoading).tag(tag));
-
-        // Flashforge local API listens on port 8898.
-        String base = host.startsWith("http://") ? host : "http://" + host;
-        if (!base.contains(":")) {
-            base += ":8898";
-        }
-        final String uploadUrl = base + "/uploadGcode";
-
-        final boolean printNow = print;
-        final String uploadName = name;
-        final GCodeProcessorResult sliceResult = fragment.getGlView().getRenderer().getGcodeResult();
-
-        // Building the package parses the whole G-code: never do it on the UI thread.
-        new Thread(() -> {
-            File gcodeFile = BedFragment.getTempGCodePath();
-            File upload = null;
-            try {
-                File packageFile = new File(SliceBeam.INSTANCE.getCacheDir(), gcode3mfName(uploadName));
-                GCode3mfPackager.create(gcodeFile, packageFile, printer, sliceResult);
-                upload = packageFile;
-            } catch (Exception e) {
-                failHostAction(tag, SliceBeam.INSTANCE.getString(R.string.MenuSliceExport3mfFailed, String.valueOf(e.getMessage())));
-                return;
-            }
-
-            final RequestParams params = new RequestParams();
-            try {
-                params.put("gcodeFile", new FileInputStream(upload), upload.getName(), ContentType.APPLICATION_OCTET_STREAM.getMimeType());
-            } catch (FileNotFoundException e) {
-                failHostAction(tag, String.valueOf(e.getMessage()));
-                return;
-            }
-
-            final long fileSize = upload.length();
-            final Header[] headers = new Header[]{
-                    new BasicHeader("serialNumber", serialNumber),
-                    new BasicHeader("checkCode", checkCode),
-                    new BasicHeader("fileSize", String.valueOf(fileSize)),
-                    new BasicHeader("printNow", printNow ? "true" : "false"),
-                    new BasicHeader("levelingBeforePrint", "false"),
-                    new BasicHeader("flowCalibration", "false"),
-                    new BasicHeader("firstLayerInspection", "false"),
-                    new BasicHeader("timeLapseVideo", "false"),
-                    new BasicHeader("useMatlStation", "false"),
-                    new BasicHeader("gcodeToolCnt", "1"),
-                    new BasicHeader("materialMappings", "W1td") // base64 of "[]"
-            };
-
-            client.post(SliceBeam.INSTANCE, uploadUrl, headers, params, null, new AsyncHttpResponseHandler() {
-                @Override
-                public void onSuccess(int statusCode, Header[] responseHeaders, byte[] responseBody) {
-                    try {
-                        JSONObject obj = new JSONObject(new String(responseBody));
-                        int code = obj.optInt("code", obj.optInt("err", -1));
-                        if (code != 0) {
-                            String msg = obj.optString("message", obj.optString("msg", ""));
-                            failHostAction(tag, SliceBeam.INSTANCE.getString(R.string.PrinterTestFlashforgeError, code, msg));
-                            return;
-                        }
-                        SliceBeam.EVENT_BUS.fireEvent(new NeedDismissSnackbarEvent(tag));
-                        SliceBeam.EVENT_BUS.fireEvent(new NeedSnackbarEvent(
-                                printNow ? SnackbarsLayout.Type.INFO : SnackbarsLayout.Type.DONE,
-                                printNow ? R.string.MenuSliceSendToPrinterPrintStarted : R.string.MenuSliceSendToPrinterOK));
-                    } catch (JSONException e) {
-                        failHostAction(tag, "HTTP " + statusCode + ": " + new String(responseBody));
-                    }
-                }
-
-                @Override
-                public void onFailure(int statusCode, Header[] responseHeaders, byte[] responseBody, Throwable error) {
-                    String body = responseBody == null ? "" : new String(responseBody);
-                    failHostAction(tag, "HTTP " + statusCode + ": " + error + (body.isEmpty() ? "" : " — " + body));
-                }
-            });
-        }, "flashforge-upload").start();
+            }));
+        }, "print-host-upload").start();
     }
 
     private void failHostAction(String tag, String message) {
@@ -1246,6 +1080,15 @@ public class SliceMenu extends ListBedMenu {
 
     private static File pendingExportFile;
 
+    /** Lets other screens reuse the export pipeline of MainActivity with their own payload. */
+    public static void setPendingExportFile(File file) {
+        if (pendingExportFile != null && pendingExportFile != file) {
+            // Previous payload was a temporary package nobody consumed.
+            pendingExportFile.delete();
+        }
+        pendingExportFile = file;
+    }
+
     /** Returns the file the user chose to export (a prepared .gcode.3mf) and clears it. */
     public static File consumePendingExportFile() {
         File f = pendingExportFile;
@@ -1341,29 +1184,17 @@ public class SliceMenu extends ListBedMenu {
         return base + ".gcode.3mf";
     }
 
-    /** Builds the .gcode.3mf in cache and returns it. */
+    /** Builds the .gcode.3mf in cache and returns it (same builder the assistant uses). */
     private File buildGcode3mfPackage(File gcode, String recommended) throws Exception {
-        File dest = new File(SliceBeam.INSTANCE.getCacheDir(), "export_" + System.currentTimeMillis() + ".gcode.3mf");
-        ConfigObject printer = SliceBeam.CONFIG.findPrinter(SliceBeam.CONFIG.presets.get("printer"));
-        GCodeProcessorResult result = fragment.getGlView().getRenderer().getGcodeResult();
-        GCode3mfPackager.create(gcode, dest, printer, result);
-        if (!GCode3mfPackager.verify(dest)) {
+        File built = HostTransfer.preparePayload(fragment, recommended, true);
+        if (!GCode3mfPackager.verify(built)) {
             // Keep going: some firmwares only need the archive to be readable, but warn in log.
-            Log.w("SliceMenu", "gcode.3mf failed self-check: " + dest.getAbsolutePath());
+            Log.w("SliceMenu", "gcode.3mf failed self-check: " + built.getAbsolutePath());
         }
-        return dest;
+        return built;
     }
 
     private void shareFile(Activity act, File f, String displayName, boolean use3mf) {
-        Intent i = new Intent(Intent.ACTION_SEND);
-        i.setType(use3mf ? "application/vnd.ms-package.3dmanufacturing-3dmodel+xml" : "application/x-gcode");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            // Custom display name: some OEMs resolve the name from the path instead of the provider.
-            i.putExtra(Intent.EXTRA_STREAM, FileProvider.getUriForFile(act, BuildConfig.APPLICATION_ID + ".provider", f, displayName));
-            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        } else {
-            i.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(f));
-        }
-        act.startActivity(Intent.createChooser(i, null));
+        act.startActivity(HostTransfer.shareIntent(act, f, displayName, use3mf));
     }
 }
