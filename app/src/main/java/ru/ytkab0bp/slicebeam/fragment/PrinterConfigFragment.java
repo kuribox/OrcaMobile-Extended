@@ -210,10 +210,13 @@ public class PrinterConfigFragment extends ProfileListFragment {
                 // Flashforge keeps its check code in the API key field and takes the serial number
                 // from discovery, exactly like the desktop printer dialog.
                 new OptionElement(def.options.get("printhost_apikey")),
-                new OptionElement(def.options.get("flashforge_serial_number")),
-                new OptionElement(discoverItem(def)),
-                new OptionElement(hostTestItem())
+                new OptionElement(def.options.get("flashforge_serial_number"))
         ));
+        // Only meaningful for Flashforge: the broadcast is theirs alone.
+        if ("flashforge".equalsIgnoreCase(effective("host_type"))) {
+            list.add(new OptionElement(discoverItem(def)));
+        }
+        list.add(new OptionElement(hostTestItem()));
 
         return list;
     }

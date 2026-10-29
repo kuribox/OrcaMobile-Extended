@@ -119,13 +119,10 @@ public class SliceMenu extends ListBedMenu {
                             }
                         }, Prefs.isPerformanceModeEnabled())
         ));
-        ConfigObject obj = SliceBeam.CONFIG.findPrinter(SliceBeam.CONFIG.presets.get("printer"));
-        String type = HostTransfer.effectiveHostType(obj);
-        String host = obj == null ? null : obj.get("print_host");
-        if (SUPPORTED_SEND.contains(type) && !TextUtils.isEmpty(host)) {
-            items.add(new BedMenuItem(R.string.MenuSliceSendToPrinter, R.drawable.send_outline_28).onClick(v -> upload(false)));
-            items.add(new BedMenuItem(R.string.MenuSliceSendToPrinterAndPrint, R.drawable.send_28).onClick(v -> upload(true)));
-        }
+        // Always offered: whether there is a printer to send to is checked when it is used, so the
+        // buttons never disappear because of a profile detail the user cannot see.
+        items.add(new BedMenuItem(R.string.MenuSliceSendToPrinter, R.drawable.send_outline_28).onClick(v -> upload(false)));
+        items.add(new BedMenuItem(R.string.MenuSliceSendToPrinterAndPrint, R.drawable.send_28).onClick(v -> upload(true)));
         return items;
     }
 
