@@ -7,6 +7,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -41,6 +42,8 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
     private TextView xTitle, yTitle, zTitle;
 
     private int objectIndex = -1;
+    private boolean locked = true;
+    private final int[] lastPosition = new int[]{100, 100, 100};
     private double baseX = 1, baseY = 1, baseZ = 1;
     private double appliedX = 1, appliedY = 1, appliedZ = 1;
     private boolean syncing;
@@ -156,6 +159,19 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
         LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         actionsParams.topMargin = ViewUtils.dp(6);
+
+        final ImageView lock = new ImageView(ctx);
+        lock.setImageResource(locked ? R.drawable.ic_padlock_locked : R.drawable.ic_padlock_open);
+        lock.setColorFilter(ThemesRepo.getColor(locked
+                ? android.R.attr.colorAccent : android.R.attr.textColorSecondary));
+        lock.setPadding(ViewUtils.dp(10), ViewUtils.dp(10), ViewUtils.dp(10), ViewUtils.dp(10));
+        lock.setOnClickListener(v -> {
+            locked = !locked;
+            lock.setImageResource(locked ? R.drawable.ic_padlock_locked : R.drawable.ic_padlock_open);
+            lock.setColorFilter(ThemesRepo.getColor(locked
+                    ? android.R.attr.colorAccent : android.R.attr.textColorSecondary));
+        });
+        actions.addView(lock, new LinearLayout.LayoutParams(ViewUtils.dp(48), ViewUtils.dp(52)));
         actions.addView(primaryButton(R.string.ScaleReset, v -> reset()), weighted(1f));
         actions.addView(primaryButton(R.string.ScaleDone, v -> bed.dismissScale()), weighted(1f));
         content.addView(actions, actionsParams);
@@ -177,8 +193,8 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
         track.setActiveColor(colorAttr);
         track.setMinMax(1, MAX_PERCENT);
         track.setCurrentPosition(100, false);
-        track.setProgressListener(integer -> preview(axis, integer / 100.0));
-        track.setListener(integer -> commit(axis, integer / 100.0));
+        track.setProgressListener(integer -> preview(axis, integer));
+        track.setListener(integer -> commit(axis, integer));
         content.addView(track, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewUtils.dp(78)));
         return track;
@@ -230,33 +246,73 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
                 ctx.getString(labelRes), applied(axis) * 100, factor(axis));
     }
 
-    /** Live feedback only: the real transform happens on release, like the tools menu does. */
-    private void preview(int axis, double target) {
+    /**
+     * The bar is a relative control, like the tools menu: what matters is how far it moved since the
+     * last commit, never the position itself. Absolute positions were being treated as the truth and a
+     * bounce of the bar became a valid measurement.
+     */
+    private void preview(int axis, int position) {
         if (syncing) return;
         try {
-            double delta = target / Math.max(0.001, applied(axis));
-            float dx = axis == 0 ? (float) delta : 1f;
-            float dy = axis == 1 ? (float) delta : 1f;
-            float dz = axis == 2 ? (float) delta : 1f;
+            double delta = position / (double) Math.max(1, lastPosition[axis]);
+            float d = (float) delta;
+            float dx = locked || axis == 0 ? d : 1f;
+            float dy = locked || axis == 1 ? d : 1f;
+            float dz = locked || axis == 2 ? d : 1f;
             bed.getGlView().getRenderer().setSelectionScale(dx, dy, dz);
             bed.getGlView().requestRender();
         } catch (Throwable ignored) {
         }
     }
 
-    private void commit(int axis, double target) {
+    private void commit(int axis, int position) {
         if (syncing) return;
-        Model model = model();
-        if (model == null || objectIndex < 0) return;
-        double delta = target / Math.max(0.001, applied(axis));
+        double delta = position / (double) Math.max(1, lastPosition[axis]);
+        lastPosition[axis] = position;
         if (Math.abs(delta - 1) < 1e-4) return;
 
-        final double[] factors = new double[]{1, 1, 1};
-        factors[axis] = delta;
-        double dx = factors[0], dy = factors[1], dz = factors[2];
-
+        syncing = true;
         try {
-            // Rotation and mirror must be accounted for, exactly like TransformMenu.scale().
+            Model model = model();
+            if (model != null && objectIndex >= 0) {
+                double[] factors = new double[]{1, 1, 1};
+                if (locked) {
+                    factors[0] = delta;
+                    factors[1] = delta;
+                    factors[2] = delta;
+                } else {
+                    factors[axis] = delta;
+                }
+                applyFactors(model, factors[0], factors[1], factors[2]);
+                if (locked) {
+                    appliedX *= delta;
+                    appliedY *= delta;
+                    appliedZ *= delta;
+                } else if (axis == 0) {
+                    appliedX *= delta;
+                } else if (axis == 1) {
+                    appliedY *= delta;
+                } else {
+                    appliedZ *= delta;
+                }
+            }
+            // Back to the neutral centre: the next drag starts from "no change".
+            resetTrackPositions();
+            try {
+                bed.getGlView().getRenderer().setSelectionScale(1, 1, 1);
+            } catch (Throwable ignored) {
+            }
+            bed.invalidateModel();
+            updateTitles();
+        } catch (Throwable ignored) {
+        } finally {
+            syncing = false;
+        }
+    }
+
+    /** Rotation and mirror must be accounted for, exactly like TransformMenu.scale(). */
+    private void applyFactors(Model model, double dx, double dy, double dz) {
+        try {
             model.getRotation(objectIndex, tempVec);
             ru.ytkab0bp.slicebeam.utils.DoubleMatrix.setIdentityM(tempMatrix, 0);
             ru.ytkab0bp.slicebeam.utils.DoubleMatrix.rotateM(tempMatrix, 0, Math.toDegrees(tempVec.x), 1, 0, 0);
@@ -267,27 +323,25 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
             tempVecArr[2] = dz;
             tempVecArr[3] = 1;
             ru.ytkab0bp.slicebeam.utils.DoubleMatrix.multiplyMV(tempVecArr, 0, tempMatrix, 0, tempVecArr, 0);
-            dx = Math.abs(tempVecArr[0] / tempVecArr[3]);
-            dy = Math.abs(tempVecArr[1] / tempVecArr[3]);
-            dz = Math.abs(tempVecArr[2] / tempVecArr[3]);
+            double rx = Math.abs(tempVecArr[0] / tempVecArr[3]);
+            double ry = Math.abs(tempVecArr[1] / tempVecArr[3]);
+            double rz = Math.abs(tempVecArr[2] / tempVecArr[3]);
 
             model.getMirror(objectIndex, tempVec);
-            dx *= tempVec.x;
-            dy *= tempVec.y;
-            dz *= tempVec.z;
-
-            model.scale(objectIndex, dx, dy, dz);
+            model.scale(objectIndex, rx * tempVec.x, ry * tempVec.y, rz * tempVec.z);
             model.ensureOnBed(objectIndex);
             model.resetBoundingBox();
         } catch (Throwable ignored) {
         }
+    }
 
-        if (axis == 0) appliedX = target;
-        if (axis == 1) appliedY = target;
-        if (axis == 2) appliedZ = target;
-
-        bed.invalidateModel();
-        updateTitles();
+    private void resetTrackPositions() {
+        if (xTrack != null) xTrack.setCurrentPosition(100, false);
+        if (yTrack != null) yTrack.setCurrentPosition(100, false);
+        if (zTrack != null) zTrack.setCurrentPosition(100, false);
+        lastPosition[0] = 100;
+        lastPosition[1] = 100;
+        lastPosition[2] = 100;
     }
 
     private void reset() {
@@ -298,16 +352,12 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
             double dz = 1 / Math.max(0.001, appliedZ);
             Model model = model();
             if (model != null && objectIndex >= 0) {
-                model.scale(objectIndex, dx, dy, dz);
-                model.ensureOnBed(objectIndex);
-                model.resetBoundingBox();
+                applyFactors(model, dx, dy, dz);
             }
             appliedX = 1;
             appliedY = 1;
             appliedZ = 1;
-            if (xTrack != null) xTrack.setCurrentPosition(100, false);
-            if (yTrack != null) yTrack.setCurrentPosition(100, false);
-            if (zTrack != null) zTrack.setCurrentPosition(100, false);
+            resetTrackPositions();
             bed.invalidateModel();
             updateTitles();
         } catch (Throwable ignored) {
