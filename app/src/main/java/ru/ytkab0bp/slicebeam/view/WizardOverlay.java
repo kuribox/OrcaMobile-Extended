@@ -78,6 +78,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private final TextView titleView;
     private final TextView explainView;
     private final LinearLayout footer;
+    private final LinearLayout actions;
 
     private int step = STEP_FILES;
     private int supports = 1;
@@ -85,9 +86,17 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private int skirt = 1;
     private int quality = 1;
     private int infill = 1;
-    private float scale = 1f;
+    private float scaleX = 100f;
+    private float scaleY = 100f;
+    private float scaleZ = 100f;
+    private float appliedX = 100f;
+    private float appliedY = 100f;
+    private float appliedZ = 100f;
+    private boolean scaleLocked = true;
+    private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
 
     private boolean slicing;
+    private boolean sliceFailed;
     private File gcode;
     private byte[] previewPng;
     private int seconds;
@@ -166,9 +175,15 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         scrollParams.topMargin = ViewUtils.dp(8);
         panel.addView(scroll, scrollParams);
 
+        actions = new LinearLayout(ctx);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.CENTER_VERTICAL);
+        panel.addView(actions, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
         footer = new LinearLayout(ctx);
         footer.setOrientation(LinearLayout.HORIZONTAL);
-        footer.setGravity(Gravity.CENTER_VERTICAL);
+        footer.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
         LinearLayout.LayoutParams footerParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         footerParams.topMargin = ViewUtils.dp(8);
@@ -255,7 +270,6 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                             .setPositiveButton(android.R.string.ok, null)
                             .show();
                 }
-                step = STEP_BED;
                 render();
             });
         }, "wizard-import").start();
@@ -296,6 +310,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private void render() {
         content.removeAllViews();
         footer.removeAllViews();
+        actions.removeAllViews();
         stepLabel.setText(ctx.getString(R.string.WizardStep, step + 1, STEP_COUNT));
 
         switch (step) {
@@ -317,6 +332,14 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                 v -> startPicker());
 
         if (loadedNames.isEmpty()) {
+            Model onBed = bed.getCurrentModel();
+            if (onBed != null && onBed.getObjectsCount() > 0) {
+                for (int i = 0; i < onBed.getObjectsCount(); i++) {
+                    loadedNames.add(ctx.getString(R.string.WizardBedPiece, i + 1));
+                }
+            }
+        }
+        if (loadedNames.isEmpty()) {
             addNote(ctx.getString(R.string.WizardFilesEmpty));
         } else {
             for (String name : loadedNames) {
@@ -337,16 +360,44 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         LinearLayout tools = new LinearLayout(ctx);
         tools.setOrientation(LinearLayout.HORIZONTAL);
         tools.addView(iconButton(R.drawable.grid_layout_outline_28,
-                ctx.getString(R.string.WizardBedArrange), v -> {
-                    arrange();
-                    render();
-                }), weighted(1f));
-        tools.addView(iconButton(R.drawable.menu_scale_28,
-                "-10 %", v -> applyScale(0.9f)), weighted(1f));
-        tools.addView(iconButton(R.drawable.menu_scale_28,
-                "+10 %", v -> applyScale(1.1f)), weighted(1f));
+                ctx.getString(R.string.WizardBedArrange), v -> arrange()), weighted(1f));
+        ImageView lock = new ImageView(ctx);
+        lock.setImageResource(R.drawable.done_outline_28);
+        lock.setColorFilter(ThemesRepo.getColor(scaleLocked
+                ? android.R.attr.colorAccent : android.R.attr.textColorSecondary));
+        lock.setPadding(ViewUtils.dp(10), ViewUtils.dp(16), ViewUtils.dp(10), ViewUtils.dp(16));
+        lock.setOnClickListener(v -> {
+            scaleLocked = !scaleLocked;
+            render();
+        });
+        tools.addView(lock, weighted(0.6f));
+        tools.addView(scaleField("X", scaleX, value -> {
+            scaleX = value;
+            if (scaleLocked) {
+                scaleY = value;
+                scaleZ = value;
+            }
+            applyScale();
+        }), weighted(1f));
+        tools.addView(scaleField("Y", scaleY, value -> {
+            scaleY = value;
+            if (scaleLocked) {
+                scaleX = value;
+                scaleZ = value;
+            }
+            applyScale();
+        }), weighted(1f));
+        tools.addView(scaleField("Z", scaleZ, value -> {
+            scaleZ = value;
+            if (scaleLocked) {
+                scaleX = value;
+                scaleY = value;
+            }
+            applyScale();
+        }), weighted(1f));
         content.addView(tools, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        addNote(ctx.getString(R.string.WizardScaleLockHint));
         addNote(ctx.getString(R.string.WizardBedGestureHint));
     }
 
@@ -388,10 +439,8 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                 ctx.getString(R.string.WizardSkirtNoShort)}, skirt == 1 ? 0 : 1,
                 i -> skirt = i == 0 ? 1 : 0);
 
-        addChips(R.string.WizardQuality, new String[]{
-                ctx.getString(R.string.WizardQualityRoughShort),
-                ctx.getString(R.string.WizardQualityNormalShort),
-                ctx.getString(R.string.WizardQualityFineShort)}, quality, i -> quality = i);
+        addChips(R.string.WizardQuality, new String[]{"0.28", "0.20", "0.16", "0.12"}, quality, i -> quality = i);
+        addNote(ctx.getString(R.string.WizardQualityNote));
 
         addChips(R.string.WizardInfill, new String[]{"10 %", "25 %", "40 %"}, infill, i -> infill = i);
     }
@@ -420,7 +469,15 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         explainView.setText(slicing ? ctx.getString(R.string.WizardSlicing) : ctx.getString(R.string.WizardSliceExplain));
 
         if (gcode == null) {
-            if (!slicing) startSlice();
+            if (sliceFailed) {
+                addIconButton(R.drawable.refresh_outline_28,
+                        ctx.getString(R.string.WizardRetrySlice), v -> {
+                            sliceFailed = false;
+                            render();
+                        });
+            } else if (!slicing) {
+                startSlice();
+            }
             return;
         }
 
@@ -451,30 +508,37 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         if (step > STEP_FILES) {
             footer.addView(iconButton(R.drawable.arrow_left_outline_28,
                     ctx.getString(R.string.WizardBack), v -> {
+                        if (step == STEP_SLICE) bed.exitSlicedView();
                         step--;
                         render();
                     }), weighted(1f));
         }
-        if (step == STEP_SLICE) {
+        if (step == STEP_FILAMENT) {
             footer.addView(iconButton(R.drawable.done_outline_28,
-                    ctx.getString(R.string.WizardFinish), v -> bed.dismissWizard()), weighted(1.4f));
-            footer.addView(iconButton(R.drawable.send_outline_28,
-                    ctx.getString(R.string.WizardSend), v -> askFormat(false, false)), weighted(1.4f));
-            footer.addView(iconButton(R.drawable.send_28,
-                    ctx.getString(R.string.WizardSendPrint), v -> askFormat(true, false)), weighted(1.4f));
-            footer.addView(iconButton(R.drawable.folder_simple_arrow_right_outline_28,
-                    ctx.getString(R.string.WizardDownload), v -> askFormat(false, true)), weighted(1.4f));
-            footer.addView(iconButton(R.drawable.share_external_28,
-                    ctx.getString(R.string.WizardShare), v -> askFormat(true, true)), weighted(1.4f));
+                    ctx.getString(R.string.WizardFinishNoSlice), v -> bed.dismissWizard()), weighted(1.6f));
+        }
+        if (step == STEP_SLICE) {
+            if (gcode != null) {
+                actions.addView(iconButton(R.drawable.send_outline_28,
+                        ctx.getString(R.string.WizardSend), v -> askFormat(false, false)), weighted(1f));
+                actions.addView(iconButton(R.drawable.send_28,
+                        ctx.getString(R.string.WizardSendPrint), v -> askFormat(true, false)), weighted(1f));
+                actions.addView(iconButton(R.drawable.folder_simple_arrow_right_outline_28,
+                        ctx.getString(R.string.WizardDownload), v -> askFormat(false, true)), weighted(1f));
+                actions.addView(iconButton(R.drawable.share_external_28,
+                        ctx.getString(R.string.WizardShare), v -> askFormat(true, true)), weighted(1f));
+            }
+            footer.addView(new android.view.View(ctx), weighted(1f));
+            footer.addView(iconButton(R.drawable.done_outline_28,
+                    ctx.getString(R.string.WizardFinish), v -> bed.dismissWizard()), weighted(1f));
             return;
         }
         View next = iconButton(R.drawable.arrow_left_outline_28,
-                ctx.getString(R.string.WizardNext), v -> {
+                ctx.getString(R.string.WizardNext), true, v -> {
                     if (step == STEP_OPTIONS) applyAnswers();
                     step = Math.min(STEP_SLICE, step + 1);
                     render();
                 });
-        next.setScaleX(-1f);
         footer.addView(next, weighted(1.4f));
     }
 
@@ -488,24 +552,84 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                 bed.getGlView().getRenderer().getBed().arrange(model);
             }
             model.resetBoundingBox();
-            bed.getGlView().requestRender();
         } catch (Exception ignored) {
         }
+        refreshBed();
     }
 
-    private void applyScale(float factor) {
+    /**
+     * The renderer keeps uploaded meshes per object: without invalidating them the plate only
+     * repaints after the next gesture, which looked like arrange/scale did nothing.
+     */
+    private void refreshBed() {
+        bed.invalidateModel();
+    }
+
+    /** Applies the fields as a delta over what is already applied, per axis. */
+    private void applyScale() {
         Model model = bed.getCurrentModel();
         if (model == null) return;
-        scale *= factor;
+        float factorX = appliedX == 0 ? 1f : scaleX / appliedX;
+        float factorY = appliedY == 0 ? 1f : scaleY / appliedY;
+        float factorZ = appliedZ == 0 ? 1f : scaleZ / appliedZ;
+        appliedX = scaleX;
+        appliedY = scaleY;
+        appliedZ = scaleZ;
         try {
             for (int i = 0; i < model.getObjectsCount(); i++) {
-                model.scale(i, factor, factor, factor);
+                model.scale(i, factorX, factorY, factorZ);
+                model.ensureOnBed(i);
             }
             model.resetBoundingBox();
-            arrange();
         } catch (Exception ignored) {
         }
-        toast(ctx.getString(R.string.WizardBedScaleApplied, Math.round(scale * 100)));
+        refreshBed();
+    }
+
+    /** Small numeric field (% of original) for one axis. */
+    private View scaleField(String axis, float value, FloatConsumer onChange) {
+        LinearLayout column = new LinearLayout(ctx);
+        column.setOrientation(LinearLayout.VERTICAL);
+        column.setGravity(Gravity.CENTER);
+
+        TextView label = new TextView(ctx);
+        label.setText(axis);
+        label.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10);
+        label.setGravity(Gravity.CENTER);
+        label.setTextColor(ThemesRepo.getColor(android.R.attr.textColorSecondary));
+        column.addView(label);
+
+        android.widget.EditText field = new android.widget.EditText(ctx);
+        field.setText(String.valueOf(Math.round(value)));
+        field.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+        field.setGravity(Gravity.CENTER);
+        field.setSingleLine(true);
+        field.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        field.setTextColor(ThemesRepo.getColor(android.R.attr.textColorPrimary));
+        field.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable text) {
+                handler.removeCallbacksAndMessages(null);
+                handler.postDelayed(() -> {
+                    try {
+                        float parsed = Float.parseFloat(text.toString().replace(',', '.'));
+                        if (parsed > 0) onChange.accept(parsed);
+                    } catch (Exception ignored) {
+                    }
+                }, 250);
+            }
+        });
+        column.addView(field, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewUtils.dp(34)));
+        return column;
     }
 
     private void applyAnswers() {
@@ -525,7 +649,8 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         }
         diff.put("brim_type", brim == 0 ? "no_brim" : brim == 1 ? "auto_brim" : "outer_only");
         diff.put("skirt_loops", skirt == 1 ? "1" : "0");
-        diff.put("layer_height", quality == 0 ? "0.28" : quality == 1 ? "0.2" : "0.12");
+        diff.put("layer_height", quality == 0 ? "0.28" : quality == 1 ? "0.20"
+                : quality == 2 ? "0.16" : "0.12");
         diff.put("sparse_infill_density", infill == 0 ? "10%" : infill == 1 ? "25%" : "40%");
     }
 
@@ -550,8 +675,12 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                 readStats(out);
                 previewPng = GCodeThumbnail.render(out, 320);
                 gcode = out;
-                // Same viewer the View tab uses: the sliced result is what the user sees.
-                ViewUtils.postOnMainThread(() -> bed.loadGCode(out));
+                // Same viewer and same information panel the View tab uses.
+                ViewUtils.postOnMainThread(() -> {
+                    bed.loadGCode(out);
+                    ViewUtils.postOnMainThread(() ->
+                            SliceMenu.showInfoPanel(bed, actions), 700);
+                });
             } catch (Exception e) {
                 error = String.valueOf(e.getMessage());
             }
@@ -559,6 +688,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
             ViewUtils.postOnMainThread(() -> {
                 slicing = false;
                 if (failure != null) {
+                    sliceFailed = true;
                     explainView.setText(ctx.getString(R.string.WizardSliceFailed, failure));
                 }
                 render();
@@ -675,13 +805,17 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     // ------------------------------------------------------------------ widgets
 
     private LinearLayout.LayoutParams weighted(float weight) {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, weight);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, ViewUtils.dp(54), weight);
         params.rightMargin = ViewUtils.dp(6);
         return params;
     }
 
-    /** Icon + label button with padding and a rounded background. */
+    /** Icon + label button with a fixed height, so every row lines up. */
     private View iconButton(int iconRes, String label, View.OnClickListener listener) {
+        return iconButton(iconRes, label, false, listener);
+    }
+
+    private View iconButton(int iconRes, String label, boolean mirrorIcon, View.OnClickListener listener) {
         LinearLayout view = new LinearLayout(ctx);
         view.setOrientation(LinearLayout.VERTICAL);
         view.setGravity(Gravity.CENTER);
@@ -693,15 +827,21 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         ImageView icon = new ImageView(ctx);
         icon.setImageResource(iconRes);
         icon.setColorFilter(ThemesRepo.getColor(android.R.attr.textColorPrimary));
-        view.addView(icon, new LinearLayout.LayoutParams(ViewUtils.dp(22), ViewUtils.dp(22)));
+        if (mirrorIcon) icon.setScaleX(-1f);
+        view.addView(icon, new LinearLayout.LayoutParams(ViewUtils.dp(20), ViewUtils.dp(20)));
 
         TextView text = new TextView(ctx);
         text.setText(label);
-        text.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
+        text.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10);
         text.setGravity(Gravity.CENTER);
         text.setTextColor(ThemesRepo.getColor(android.R.attr.textColorPrimary));
-        text.setMaxLines(2);
+        text.setSingleLine(true);
+        text.setEllipsize(android.text.TextUtils.TruncateAt.END);
         view.addView(text);
+
+        view.setMinimumHeight(ViewUtils.dp(54));
+        view.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewUtils.dp(54)));
         return view;
     }
 
@@ -825,6 +965,10 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private void toast(String message) {
         ViewUtils.postOnMainThread(() -> android.widget.Toast.makeText(
                 ctx, message, android.widget.Toast.LENGTH_SHORT).show());
+    }
+
+    private interface FloatConsumer {
+        void accept(float value);
     }
 
     private interface IntConsumer {

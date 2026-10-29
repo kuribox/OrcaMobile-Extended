@@ -352,6 +352,31 @@ public class BedFragment extends Fragment {
         }
     }
 
+    /** Re-uploads every object mesh: transforms are otherwise only visible after a gesture. */
+    public void invalidateModel() {
+        if (glView == null) return;
+        glView.queueEvent(() -> {
+            Model model = glView.getRenderer().getModel();
+            if (model != null) {
+                for (int i = 0; i < model.getObjectsCount(); i++) {
+                    glView.getRenderer().invalidateGlModel(i);
+                }
+            }
+            glView.getRenderer().invalidateSelectionObject();
+            glView.getRenderer().setSelectionScale(1, 1, 1);
+            glView.requestRender();
+        });
+        glView.requestRender();
+    }
+
+    /** Leaves the sliced preview and goes back to the editing categories. */
+    public void exitSlicedView() {
+        if (navigationView == null) return;
+        if (currentMenuSlot == MenuCategory.SLICE_AND_EXPORT.ordinal()) {
+            navigationView.setSelectedItemId(MenuCategory.FILE.ordinal());
+        }
+    }
+
     public ru.ytkab0bp.slicebeam.view.WizardOverlay getWizard() {
         return wizardOverlay;
     }

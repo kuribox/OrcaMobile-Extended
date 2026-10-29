@@ -423,4 +423,8 @@
     <string name="WizardQualityNormalShort">Normal</string>
     <string name="WizardQualityFineShort">Fine</string>
     <string name="WizardSliceFailed">Could not slice: %1$s</string>
+    <string name="WizardQualityNote">Layer height in mm: thinner means a better finish and more time.</string>
+    <string name="WizardFinishNoSlice">Finish without slicing</string>
+    <string name="WizardScaleLockHint">The ✓ mark keeps proportions (X = Y = Z). Clear it to change a single dimension.</string>
+    <string name="WizardRetrySlice">Retry slicing</string>
 </resources>

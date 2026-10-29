@@ -79,6 +79,17 @@ import ru.ytkab0bp.slicebeam.view.SegmentsView;
 import ru.ytkab0bp.slicebeam.view.SnackbarsLayout;
 
 public class SliceMenu extends ListBedMenu {
+
+    /** Opens the slice information panel (time, filament, layer metrics and colour legend). */
+    public static void showInfoPanel(BedFragment fragment, View from) {
+        try {
+            SliceMenu parent = new SliceMenu();
+            parent.onSetBed(fragment);
+            fragment.showUnfoldMenu(new InfoMenu(parent), from);
+        } catch (Exception ignored) {
+        }
+    }
+
     private AsyncHttpClient client = new AsyncHttpClient();
 
     {

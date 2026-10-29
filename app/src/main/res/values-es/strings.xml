@@ -423,4 +423,8 @@
     <string name="WizardQualityNormalShort">Normal</string>
     <string name="WizardQualityFineShort">Fina</string>
     <string name="WizardSliceFailed">No se pudo laminar: %1$s</string>
+    <string name="WizardQualityNote">Altura de capa en mm: más fino, mejor acabado y más tiempo.</string>
+    <string name="WizardFinishNoSlice">Terminar sin laminar</string>
+    <string name="WizardScaleLockHint">La marca ✓ mantiene las proporciones (X = Y = Z). Desmárcala para deformar una sola medida.</string>
+    <string name="WizardRetrySlice">Reintentar laminado</string>
 </resources>
