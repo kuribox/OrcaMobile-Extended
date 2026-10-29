@@ -118,13 +118,6 @@ public class SettingsFragment extends ProfileListFragment {
                     Activity act = (Activity) getContext();
                     act.startActivity(new Intent(act, SetupActivity.class).putExtra(SetupActivity.EXTRA_CLOUD_PROFILE, true));
                 }) : null,
-                new OptionElement(new PreferenceItem()
-                        .setIcon(R.drawable.printer_outline_28)
-                        .setTitle(getContext().getString(R.string.SettingsLocalServer))
-                        .setValueProvider(() -> getContext().getString(
-                                ru.ytkab0bp.slicebeam.server.LocalServerService.isRunning()
-                                        ? R.string.LocalServerOn : R.string.LocalServerOff))
-                        .setOnClickListener(v -> showLocalServerDialog())),
                 new OptionElement(R.drawable.paint_roller_outline_28, getContext().getString(R.string.SettingsInterface)),
                 new OptionElement(new PreferenceItem().setTitle(getContext().getString(R.string.SettingsInterfaceTheme)).setValueProvider(() -> getContext().getString(Prefs.getThemeMode().title)).setOnClickListener(v -> {
                     String[] items = new String[Prefs.ThemeMode.values().length];
@@ -243,6 +236,13 @@ public class SettingsFragment extends ProfileListFragment {
                     Activity act = (Activity) getContext();
                     act.startActivity(new Intent(act, SetupActivity.class).putExtra(SetupActivity.EXTRA_ADD_PRINTER, true));
                 }),
+                new OptionElement(new PreferenceItem()
+                        .setIcon(R.drawable.printer_outline_28)
+                        .setTitle(getContext().getString(R.string.SettingsLocalServer))
+                        .setValueProvider(() -> getContext().getString(
+                                ru.ytkab0bp.slicebeam.server.LocalServerService.isRunning()
+                                        ? R.string.LocalServerOn : R.string.LocalServerOff))
+                        .setOnClickListener(v -> showLocalServerDialog())),
                 new OptionElement(R.drawable.info_outline_28, getContext().getString(R.string.SettingsAbout)).setOnClick(() -> {
                     Activity act = (Activity) getContext();
                     act.startActivity(new Intent(act, SetupActivity.class).putExtra(SetupActivity.EXTRA_ABOUT, true));

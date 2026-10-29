@@ -602,8 +602,14 @@ public abstract class ProfileListFragment extends Fragment {
                 categoryElements.put(j, new ArrayList<>());
                 j++;
                 list.add(w);
-            } else {
+            } else if (j > 0) {
                 categoryElements.get(j - 1).add(w);
+            } else {
+                // No header above: give the element its own category instead of reading index -1.
+                w.categoryIndex = j;
+                categoryElements.put(j, new ArrayList<>());
+                j++;
+                list.add(w);
             }
         }
 
