@@ -91,11 +91,20 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private float scaleX = 100f;
     private float scaleY = 100f;
     private float scaleZ = 100f;
+    private float baseX = 100f;
+    private float baseY = 100f;
+    private float baseZ = 100f;
     private float pendingX = 100f;
     private float pendingY = 100f;
     private float pendingZ = 100f;
     private boolean scaleInMm;
     private boolean scaleLocked = true;
+    private boolean syncing;
+    private int syncedObject = -1;
+    private boolean syncedInMm;
+    private android.widget.NumberPicker pickerX;
+    private android.widget.NumberPicker pickerY;
+    private android.widget.NumberPicker pickerZ;
     private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
 
     private boolean slicing;
@@ -362,31 +371,42 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         addRow(R.drawable.square_stack_up_outline_28,
                 ctx.getString(R.string.WizardBedCount, count), null, null, false);
 
+        int selected = selectedObject();
+        boolean hasPart = selected >= 0;
+
         LinearLayout tools = new LinearLayout(ctx);
         tools.setOrientation(LinearLayout.HORIZONTAL);
         tools.addView(iconButton(R.drawable.grid_layout_outline_28,
                 ctx.getString(R.string.WizardBedArrange), v -> arrange()), weighted(1f));
-        tools.addView(unitChip("%", !scaleInMm), weighted(0.8f));
-        tools.addView(unitChip("mm", scaleInMm), weighted(0.8f));
+        // No part selected: neither unit is highlighted, the hint below explains what to do.
+        tools.addView(unitChip("%", hasPart && !scaleInMm), weighted(0.8f));
+        tools.addView(unitChip("mm", hasPart && scaleInMm), weighted(0.8f));
         content.addView(tools, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        int selected = selectedObject();
-        if (selected < 0) {
+        if (!hasPart) {
             addNote(ctx.getString(R.string.WizardScaleSelectPart));
             addNote(ctx.getString(R.string.WizardBedGestureHint));
             return;
         }
-        syncScaleValues(selected);
+
+        if (selected != syncedObject || scaleInMm != syncedInMm) {
+            syncScaleValues(selected);
+            syncedObject = selected;
+            syncedInMm = scaleInMm;
+        }
         addRow(R.drawable.picture_stack_outline_28,
                 ctx.getString(R.string.WizardScaleSelected, selected + 1), null, null, false);
 
-        float step = scaleInMm ? 1f : 5f;
-        content.addView(stepperRow("X", selected, 0), new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        content.addView(stepperRow("Y", selected, 1), new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        content.addView(stepperRow("Z", selected, 2), new LinearLayout.LayoutParams(
+        LinearLayout carousels = new LinearLayout(ctx);
+        carousels.setOrientation(LinearLayout.HORIZONTAL);
+        pickerX = null;
+        pickerY = null;
+        pickerZ = null;
+        carousels.addView(axisPicker("X", 0), weighted(1f));
+        carousels.addView(axisPicker("Y", 1), weighted(1f));
+        carousels.addView(axisPicker("Z", 2), weighted(1f));
+        content.addView(carousels, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout confirm = new LinearLayout(ctx);
@@ -405,6 +425,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                 ctx.getString(R.string.WizardScaleApply), v -> commitScale()), weighted(1.6f));
         content.addView(confirm, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        addNote(ctx.getString(R.string.WizardScaleLockHint));
         addNote(ctx.getString(R.string.WizardBedGestureHint));
     }
 
@@ -454,6 +475,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         addNote(ctx.getString(R.string.WizardQualityNote));
 
         addChips(R.string.WizardInfill, new String[]{"10 %", "25 %", "40 %"}, infill, i -> infill = i);
+        addNote(ctx.getString(R.string.WizardInfillNote));
     }
 
     private void renderFilament() {
@@ -614,70 +636,97 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
 
     /** Keeps the pending numbers in sync with the part whenever the step is shown. */
     private void syncScaleValues(int index) {
-        pendingX = currentValue(index, 0);
-        pendingY = currentValue(index, 1);
-        pendingZ = currentValue(index, 2);
-        scaleX = pendingX;
-        scaleY = pendingY;
-        scaleZ = pendingZ;
+        baseX = currentValue(index, 0);
+        baseY = currentValue(index, 1);
+        baseZ = currentValue(index, 2);
+        pendingX = baseX;
+        pendingY = baseY;
+        pendingZ = baseZ;
     }
 
-    /** [−] value [+] — a numeric selector with no upper bound; nothing is applied until OK. */
-    private View stepperRow(String axis, int index, int which) {
-        LinearLayout row = new LinearLayout(ctx);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
+    private float stepSize() {
+        return scaleInMm ? 1f : 5f;
+    }
+
+    private float maxValue() {
+        return scaleInMm ? 400f : 500f;
+    }
+
+    /** Carousel: swipe or tap the row to change the value, wrapping around. */
+    private View axisPicker(String axis, int which) {
+        LinearLayout column = new LinearLayout(ctx);
+        column.setOrientation(LinearLayout.VERTICAL);
+        column.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView label = new TextView(ctx);
         label.setText(axis);
-        label.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        label.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
         label.setGravity(Gravity.CENTER);
         label.setTextColor(ThemesRepo.getColor(android.R.attr.textColorSecondary));
-        row.addView(label, new LinearLayout.LayoutParams(ViewUtils.dp(22), ViewUtils.dp(48)));
+        column.addView(label);
 
-        float step = scaleInMm ? 1f : 5f;
-        row.addView(stepButton("−", v -> stepBy(which, -step)), weighted(0.9f));
+        android.widget.NumberPicker picker = new android.widget.NumberPicker(ctx);
+        picker.setMinValue(0);
+        picker.setMaxValue(Math.round(maxValue() / stepSize()) - 1);
+        picker.setWrapSelectorWheel(true);
+        picker.setFormatter(index -> formatValue((index + 1) * stepSize()));
+        picker.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        picker.setValue(indexOf(pending(which)));
+        picker.setOnValueChangedListener((p, oldValue, newValue) -> {
+            if (syncing) return;
+            setPending(which, (newValue + 1) * stepSize());
+            if (scaleLocked) syncPickers(which);
+        });
+        column.addView(picker, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewUtils.dp(112)));
 
-        TextView value = new TextView(ctx);
-        value.setText(formatValue(pending(which)) + (scaleInMm ? " mm" : " %"));
-        value.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        value.setGravity(Gravity.CENTER);
-        value.setTextColor(ThemesRepo.getColor(android.R.attr.textColorPrimary));
-        row.addView(value, weighted(1.6f));
-
-        row.addView(stepButton("+", v -> stepBy(which, step)), weighted(0.9f));
-        return row;
+        if (which == 0) pickerX = picker;
+        if (which == 1) pickerY = picker;
+        if (which == 2) pickerZ = picker;
+        return column;
     }
 
-    private View stepButton(String text, View.OnClickListener listener) {
-        TextView view = new TextView(ctx);
-        view.setText(text);
-        view.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
-        view.setGravity(Gravity.CENTER);
-        view.setTextColor(ThemesRepo.getColor(android.R.attr.textColorPrimary));
-        view.setBackground(ViewUtils.createRipple(ThemesRepo.getColor(android.R.attr.colorControlHighlight),
-                ThemesRepo.getColor(android.R.attr.colorControlHighlight), ViewUtils.dp(6)));
-        view.setOnClickListener(listener);
-        view.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewUtils.dp(48)));
-        return view;
+    private int indexOf(float value) {
+        int index = Math.round(value / stepSize()) - 1;
+        return Math.max(0, Math.min(Math.round(maxValue() / stepSize()) - 1, index));
     }
 
     private float pending(int which) {
         return which == 0 ? pendingX : which == 1 ? pendingY : pendingZ;
     }
 
-    private void stepBy(int which, float delta) {
-        float value = Math.max(scaleInMm ? 1f : 5f, pending(which) + delta);
+    private void setPending(int which, float value) {
+        value = Math.max(stepSize(), Math.min(maxValue(), value));
         if (scaleLocked) {
-            pendingX = value;
-            pendingY = value;
-            pendingZ = value;
+            if (scaleInMm) {
+                // In mm, "locked" means keep the proportions: scale the other axes by the same ratio.
+                float base = which == 0 ? baseX : which == 1 ? baseY : baseZ;
+                float ratio = base <= 0 ? 1f : value / base;
+                pendingX = baseX * ratio;
+                pendingY = baseY * ratio;
+                pendingZ = baseZ * ratio;
+            } else {
+                pendingX = value;
+                pendingY = value;
+                pendingZ = value;
+            }
         } else {
             if (which == 0) pendingX = value;
             if (which == 1) pendingY = value;
             if (which == 2) pendingZ = value;
         }
-        render();
+    }
+
+    /** Mirrors a locked change into the other two carousels without firing their listeners. */
+    private void syncPickers(int changed) {
+        syncing = true;
+        try {
+            if (changed != 0 && pickerX != null) pickerX.setValue(indexOf(pendingX));
+            if (changed != 1 && pickerY != null) pickerY.setValue(indexOf(pendingY));
+            if (changed != 2 && pickerZ != null) pickerZ.setValue(indexOf(pendingZ));
+        } catch (Exception ignored) {
+        }
+        syncing = false;
     }
 
     private String formatValue(float value) {
@@ -703,6 +752,11 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         } catch (Throwable ignored) {
         }
         bed.invalidateModel();
+        baseX = pendingX;
+        baseY = pendingY;
+        baseZ = pendingZ;
+        syncedObject = index;
+        syncedInMm = scaleInMm;
         render();
     }
 
@@ -719,7 +773,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                 ? R.attr.textColorOnAccent : android.R.attr.textColorPrimary));
         chip.setOnClickListener(v -> {
             scaleInMm = text.equals("mm");
-            scaleLocked = scaleLocked;
+            syncedObject = -1;
             render();
         });
         chip.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewUtils.dp(54)));
@@ -1115,6 +1169,8 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
             background.setCornerRadius(ViewUtils.dp(4));
             background.setColor(ThemesRepo.getColor(active
                     ? android.R.attr.colorAccent : android.R.attr.colorControlHighlight));
+            chip.setSingleLine(true);
+            chip.setEllipsize(android.text.TextUtils.TruncateAt.END);
             chip.setBackground(background);
             chip.setTextColor(ThemesRepo.getColor(active
                     ? R.attr.textColorOnAccent : android.R.attr.textColorPrimary));
@@ -1122,7 +1178,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                 onPick.accept(index);
                 render();
             });
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, ViewUtils.dp(54), 1f);
             params.rightMargin = ViewUtils.dp(6);
             row.addView(chip, params);
         }
