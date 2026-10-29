@@ -134,6 +134,35 @@ preferences (`app_language`), applies to both layers at once — Android resourc
 `Context` in `attachBaseContext`, and the OrcaSlicer `.po` strings via the default `Locale` — and the
 current screen is recreated so everything re-resolves without restarting the app.
 
+## Guided assistant
+
+**View → File → Assistant** opens a guided mode aimed at someone who has never sliced before. It is
+not a separate screen: it is a panel over the real View tab, so the plate you drag, the auto-arrange,
+the gestures and the sliced preview are the ones the app always uses. That also means leaving at any
+point keeps the work: the parts stay on the plate, the answers stay in the active profile as unsaved
+edits (`SliceBeam.LIVE_DIFF_PRINT`) and a finished slice stays in the viewer.
+
+| Step | What it does |
+| --- | --- |
+| 1 · Parts | Opens the document picker with `EXTRA_ALLOW_MULTIPLE`, so every STL/3MF can be chosen at once. Each part is loaded, auto-oriented and arranged; the list allows removing one with the ✕ button. |
+| 2 · Plate | The real 3D plate is live under the panel: drag to move, two fingers to rotate, pinch to zoom. The panel adds *Arrange* (`Bed3D.arrange`) and scaling of the selected part. |
+| 3 · Printer | Lists the printer profiles and switches the active preset. |
+| 4 · Options | Supports (none / tree / normal), brim (none / automatic / outer), skirt, quality (Baja 0.28 · Media 0.20 · Buena 0.16 · Alta 0.12 mm) and infill (10 / 25 / 40 %). |
+| 5 · Filament | Lists the filament profiles; *Finish without slicing* exits here with everything applied. |
+| 6 · Slice | Slicing starts on entering the step (no button), with a spinner, a 3-minute timeout and `Throwable` handling so an out-of-memory is an error message, not a frozen panel. The result loads through `BedFragment.loadGCode`, so the preview is the View tab's own, followed by send / send and print / download / share on their own row. |
+
+Scaling has two units (**%** of the original and **mm** of the exact bounding box), three
+`NumberPicker` carousels (X / Y / Z, wrap-around, keyboard blocked) and a padlock: closed keeps the
+proportions — in mm the other axes follow the same ratio, they are not forced to the same millimetre
+value — open lets one dimension change. Nothing is applied until *Apply*, and after any change the
+rendered meshes are invalidated (`BedFragment.invalidateModel`) so the plate repaints immediately
+instead of waiting for the next gesture. Going back from the slice step drops the result, so changing
+anything and continuing slices again.
+
+Implementation notes worth knowing before touching it: the panel is added to `BedFragment.overlayLayout`
+and only its bottom 46 % consumes touches, the rest falls through to the plate; `WizardOverlay` keeps the
+step state, and `MainActivity` routes the picker result back to it (`REQUEST_CODE_WIZARD_FILE`).
+
 ## Print info panel
 
 After slicing, the **Info** entry in the bed menu lists every extrusion role with its time, filament
@@ -184,43 +213,19 @@ Two details that used to be wrong and made printers show no preview or reject th
 - Values interpolated into the XML are escaped (`&`, `<`, `>`, quotes); object names read back from the
   model are unescaped first so nothing is escaped twice.
 
-## Print info panel
-
-After slicing, the **Info** entry in the bed menu lists every extrusion role with its time, filament
-length and weight, and lets you toggle each one. The panel is scrollable and is capped to part of the
-screen so the model stays visible while you switch color scheme.
-
-Above the role list, a **color legend** explains what each color means. For the value-based schemes
-(speed, flow, temperature, …) it draws the exact 11-color palette libvgcode renders and labels the ends
-with the measured minimum and maximum plus the average, so a color can be read back as a value; the
-layer-time-logarithmic scheme is marked as such. For line type and filament the colors are categorical,
-so the legend names them instead: each row of the list below carries its color swatch.
-
-The *Values* block shows the real numbers behind the active color scheme
-(min – max · average): layer height (mm), line width (mm), speed (mm/s), volumetric flow (mm³/s),
-temperature (°C), fan speed (%) and layer time (s). `ViewLegend` is a Java port of libvgcode's
-`ColorRange` (palette + linear/logarithmic interpolation) verified against the C++ implementation. They come from `GCodeStats`, a single pass over the
-sliced G-code that derives speed from the `F` values, flow and effective line width from the extruded
-volume against segment length, and layer heights from the `Z` steps. Nothing is invented: if the file
-carries no measurable moves for a metric the row reads *No values*.
-
-## Exporting and sharing
-
-After slicing, the slice menu has two actions — **Export** and **Share**. Both ask which format to produce:
-
-- **G-code only (.gcode)** — plain G-code, as before.
-- **Print package (.gcode.3mf)** — standard 3MF package with the G-code plus metadata and preview, containing:
-  - `Metadata/plate_1.gcode` — the sliced G-code
-  - `Metadata/slice_info.config` — plate summary (prediction seconds, weight, per-filament `used_m` / `used_g`)
-  - `Metadata/plate_1.json`, `Metadata/project_settings.config`, `Metadata/model_settings.config`
-  - `Metadata/plate_1.png` (+ `plate_no_light` / `top` / `pick`) — preview taken from the thumbnails embedded in the G-code
-  - `3D/3dmodel.model`, `[Content_Types].xml`, `_rels/.rels`, `Metadata/_rels/model_settings.config.rels`
-
-Packaging runs on a background thread (it parses the whole G-code) and is self-checked before leaving the app.
-
 ## Changelog
 
 All notable changes of this fork. Dates are local (Europe/Madrid).
+
+### 0.5.1 — guided assistant (unreleased)
+
+- **Asistente guiado**: six-step panel over the real View tab for first-time users — multi-file
+  picking, plate with arrange and per-part scaling (% or mm, X/Y/Z carousels, proportion padlock),
+  printer and filament selection, four beginner questions, and slicing on entering the last step with
+  the same 3D preview and information as the manual flow. Leaving at any point keeps the parts, the
+  unsaved settings and the sliced result.
+- Slicing from the assistant fails after 3 minutes instead of spinning forever, and reports
+  `OutOfMemoryError` instead of hanging.
 
 ### 0.5.0 — 2026-10-24 (first fork release)
 
