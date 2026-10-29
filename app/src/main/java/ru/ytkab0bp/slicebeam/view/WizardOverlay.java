@@ -109,7 +109,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private float appliedZ = 1f;
     private int editingAxis;
     private int tempC = 215;
-    private int flowPct = 100;
+    private float volumetric = 12f;
     private boolean tempFlowSeeded;
     private final java.util.Map<Integer, float[]> partBase = new java.util.HashMap<>();
     private final java.util.Map<Integer, float[]> partApplied = new java.util.HashMap<>();
@@ -581,8 +581,9 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
 
         content.addView(labelledPicker(R.string.WizardTempFlowTemp, " °C",
                 170, 300, 5, tempC, value -> tempC = Math.round(value)));
-        content.addView(labelledPicker(R.string.WizardTempFlowFlow, " %",
-                80, 120, 1, flowPct, value -> flowPct = Math.round(value)));
+        // Volumetric speed is a decimal, so the wheel counts halves: 0 = no limit.
+        content.addView(labelledPicker(R.string.WizardTempFlowVolumetric, " mm³/s",
+                0, 50, 0.5f, volumetric, value -> volumetric = value));
         addNote(ctx.getString(R.string.WizardTempFlowTempNote));
         addNote(ctx.getString(R.string.WizardTempFlowNote));
     }
@@ -596,10 +597,8 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         if (tempFlowSeeded) return;
         tempFlowSeeded = true;
         tempC = parseInt(firstValue(filament, "nozzle_temperature", "temperature"), 215);
-        int flow = parseInt(firstValue(filament, "filament_flow_ratio", "extrusion_multiplier"), 100);
-        // Flow is stored as a ratio per filament.
-        if (flow <= 2) flow = Math.round(flow * 100f);
-        flowPct = Math.max(80, Math.min(120, flow));
+        float speed = parseFloat(firstValue(filament, "filament_max_volumetric_speed", null), 12f);
+        volumetric = Math.max(0f, Math.min(50f, speed));
     }
 
     private static String firstValue(ConfigObject object, String key, String legacyKey) {
@@ -608,6 +607,23 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         if (TextUtils.isEmpty(value)) return null;
         int comma = value.indexOf(',');
         return comma > 0 ? value.substring(0, comma) : value;
+    }
+
+    private static float parseFloat(String value, float fallback) {
+        if (TextUtils.isEmpty(value)) return fallback;
+        try {
+            return Float.parseFloat(value.trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    private static String formatVolumetric(float value) {
+        // Whole numbers stay whole ("12"), halves keep one decimal ("12.5").
+        if (Math.abs(value - Math.round(value)) < 0.01f) {
+            return String.valueOf(Math.round(value));
+        }
+        return String.format(java.util.Locale.ROOT, "%.1f", value);
     }
 
     private static int parseInt(String value, int fallback) {
@@ -626,16 +642,15 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         java.util.Map<String, String> values = filament.values;
         putEither(values, "nozzle_temperature", "temperature", String.valueOf(tempC));
         putEither(values, "nozzle_temperature_initial_layer", "first_layer_temperature", String.valueOf(tempC));
-        putEither(values, "filament_flow_ratio", "extrusion_multiplier",
-                String.format(java.util.Locale.ROOT, "%.2f", flowPct / 100f));
+        putEither(values, "filament_max_volumetric_speed", "filament_max_volumetric_speed",
+                formatVolumetric(volumetric));
 
         java.util.Map<String, String> live = SliceBeam.LIVE_DIFF_FILAMENT.values;
         live.remove("nozzle_temperature");
         live.remove("temperature");
         live.remove("nozzle_temperature_initial_layer");
         live.remove("first_layer_temperature");
-        live.remove("filament_flow_ratio");
-        live.remove("extrusion_multiplier");
+        live.remove("filament_max_volumetric_speed");
 
         try {
             SliceBeam.saveConfig();
@@ -655,9 +670,9 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         }
     }
 
-    /** Label + wheel, one setting per row. */
-    private View labelledPicker(int titleRes, String unit, int min, int max, int step, int current,
-                                ValueConsumer onValue) {
+    /** Label + wheel, one setting per row. Steps can be fractional (volumetric speed). */
+    private View labelledPicker(int titleRes, String unit, int min, int max, float step,
+                                float current, ValueConsumer onValue) {
         LinearLayout column = new LinearLayout(ctx);
         column.setOrientation(LinearLayout.VERTICAL);
 
@@ -672,12 +687,19 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
 
         android.widget.NumberPicker picker = new android.widget.NumberPicker(ctx);
         picker.setMinValue(0);
-        picker.setMaxValue((max - min) / step);
+        int count = Math.round((max - min) / step);
+        picker.setMaxValue(count);
         picker.setWrapSelectorWheel(false);
-        picker.setFormatter(index -> (min + index * step) + unit);
+        picker.setFormatter(index -> {
+            float value = min + index * step;
+            String text = step < 1f
+                    ? String.format(java.util.Locale.ROOT, "%.1f", value)
+                    : String.valueOf(Math.round(value));
+            return text + unit;
+        });
         picker.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         applyPickerColors(picker);
-        int index = Math.max(0, Math.min((max - min) / step, (current - min) / step));
+        int index = Math.max(0, Math.min(count, Math.round((current - min) / step)));
         picker.setValue(index);
         picker.setOnValueChangedListener((p, oldValue, newValue) ->
                 onValue.accept(min + newValue * step));
@@ -687,7 +709,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     }
 
     private interface ValueConsumer {
-        void accept(int value);
+        void accept(float value);
     }
 
     /** Entering this step slices: the result appears in the 3D viewer behind the panel. */

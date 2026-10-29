@@ -443,11 +443,12 @@
     <string name="WizardProfileNote">Los ajustes de los pasos siguientes se guardan en el perfil que elijas aquí.</string>
     <string name="WizardOptionsNeedProfile">Elige primero la calidad: es el perfil donde se guardan estos ajustes.</string>
     <string name="WizardOptionsInProfile">Se guardan en el perfil: %1$s</string>
-    <string name="WizardTempFlowTitle">Temperatura y flujo</string>
+    <string name="WizardTempFlowTitle">Temperatura y velocidad volumétrica</string>
     <string name="WizardTempFlowExplain">Los dos valores de filamento que más se tocan. Se guardan en el filamento que elegiste.</string>
     <string name="WizardTempFlowTemp">Temperatura de la boquilla</string>
     <string name="WizardTempFlowTempNote">Orientativo: PLA sobre 200–215 °C, PETG sobre 230–240 °C, ABS 240–260 °C.</string>
     <string name="WizardTempFlowFlow">Flujo de extrusión</string>
-    <string name="WizardTempFlowNote">100 % es lo normal. Si las paredes salen finas, sube; si hay exceso de material o rebabas, baja.</string>
+    <string name="WizardTempFlowNote">Es el techo de material que la boquilla puede fundir por segundo. PLA sobre 12–21 mm³/s, PETG 10–15 mm³/s. 0 quita el límite (imprime tan rápido como permita el resto del perfil).</string>
     <string name="WizardFilamentMissing">No hay filamento activo. Vuelve al paso anterior y elige uno.</string>
+    <string name="WizardTempFlowVolumetric">Velocidad volumétrica máxima</string>
 </resources>

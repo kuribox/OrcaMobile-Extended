@@ -150,7 +150,7 @@ edits (`SliceBeam.LIVE_DIFF_PRINT`) and a finished slice stays in the viewer.
 | 4 · Quality | Lists the **print profiles**: quality is the profile itself (layer height, speeds, process temperatures), not a bare number. |
 | 5 · Options | Supports (none / tree / normal), adhesion brim (none / automatic / outer), skirt and infill (10 / 25 / 40 %), written **into the chosen print profile** and saved, so changing the quality later does not discard them. Requires a profile: without one the step only explains how to get it. |
 | 6 · Filament | Lists the filament profiles; *Finish without slicing* exits here with everything applied. |
-| 7 · Temperature and flow | Nozzle temperature and extrusion flow, the two filament values changed most often; written into the chosen filament profile and saved. |
+| 7 · Temperature and volumetric speed | Nozzle temperature and maximum volumetric speed (the melt-rate ceiling; 0 removes it), the two filament values changed most often; written into the chosen filament profile and saved. |
 | 8 · Slice | Slicing starts on entering the step (no button), with a spinner, a 3-minute timeout and `Throwable` handling so an out-of-memory is an error message, not a frozen panel. The result loads through `BedFragment.loadGCode`, so the preview is the View tab's own, followed by send / send and print / download / share on their own row. |
 
 Scaling applies to the **selected part** (tap one first) and has two units (**%** of the original and

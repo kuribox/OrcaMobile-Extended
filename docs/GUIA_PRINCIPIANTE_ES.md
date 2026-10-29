@@ -36,9 +36,10 @@ perfil que elegiste en el paso anterior**, así que no se pierden al cambiar de 
 
 **Paso 6 · Filamento.** Lista de filamentos cargados.
 
-**Paso 7 · Temperatura y flujo.** Los dos valores de filamento que más se tocan: **temperatura de
-boquilla** (PLA sobre 200–215 °C, PETG 230–240 °C) y **flujo** (100 % es lo normal). Se guardan en el
-filamento elegido.
+**Paso 7 · Temperatura y velocidad volumétrica.** Los dos valores de filamento que más se tocan:
+**temperatura de boquilla** (PLA sobre 200–215 °C, PETG 230–240 °C) y **velocidad volumétrica máxima**
+(el techo de material fundido por segundo: PLA 12–21 mm³/s, PETG 10–15; 0 quita el límite). Se guardan
+en el filamento elegido.
 
 **Paso 8 · Laminar.** Al llegar a este paso **lamina solo**, sin botón: muestra el progreso y al
 terminar verás el resultado en 3D detrás del panel, igual que en Vista, con tiempo, gramos, capas y
