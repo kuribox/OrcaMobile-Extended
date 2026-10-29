@@ -6,63 +6,40 @@ Todos los nombres de botones y ajustes son los que verás **en español**.
 
 ---
 
-## 0. Modo asistente — todo en seis pantallas (empieza por aquí)
+## 0. Modo asistente — la Vista con un panel guiado (empieza por aquí)
 
-Si es tu primera vez, no uses los menús sueltos: el **Asistente** te lleva de la mano.
+El asistente **no es otra pantalla**: es un panel que se abre encima de la Vista. Todo lo que ves
+detrás es la cama de verdad, con tus modelos, así que puedes moverlos con el dedo mientras el panel
+te guía. Seis pasos:
 
-**Cómo entrar**: pestaña **Vista** → sección **Archivo** → botón **Asistente** (es el primero, con un
-destello). Si no lo ves, desliza la fila de botones.
+**Paso 1 · Archivos.** Al pulsar **Vista → Archivo → Asistente** se abre directamente el selector de
+Android. Puedes **marcar varios STL/3MF a la vez**: se cargan todos. Vuélvelo a pulsar si quieres
+añadir más; debajo ves la lista de piezas cargadas.
 
-**Paso 1 · Elegir el modelo.** Pulsa **Elegir archivo STL / 3MF** y escoge el archivo (puedes marcar
-**varios a la vez**). Cada pieza se orienta sola y se coloca en la cama.
+**Paso 2 · La cama.** El panel baja y deja ver la cama real. Ahí mismo puedes **arrastrar, girar y
+pellizcar** las piezas. En el panel tienes:
 
-**Paso 2 · La cama.** Aquí ves la lista de piezas con su tamaño en milímetros. Botones:
+- **Organizar** — reparte las piezas sin solaparse.
+- **−10 % / +10 %** — escala todas las piezas, el ajuste más habitual al empezar.
+- El número de piezas en la cama, para confirmar que están todas.
 
-- **Organizar automáticamente**: reparte las piezas sin que se solapen.
-- **Escalar todas las piezas**: 50 %, 75 %, 100 %, 125 % o 150 % — el ajuste que más se usa al
-  empezar (una figura de 20 cm no cabe en una cama de 22 cm).
-- **Añadir otra pieza**: vuelve al selector de archivos.
-- Si prefieres **moverlas con el dedo**, sal del asistente: las piezas se quedan en la cama y puedes
-  usar la pestaña Vista con sus herramientas. Al volver al asistente, sigue en el mismo paso.
+**Paso 3 · Impresora.** Lista de perfiles de impresora; el que está en uso va resaltado.
 
-**Paso 3 · Elegir la impresora.** Aparece la lista de perfiles que ya tienes configurados. Elige la
-tuya; la app coloca la pieza otra vez sobre la cama de esa impresora. Si no aparece, sal del asistente
-y créala en la pestaña **Impresora** (mira el apartado Configurar la impresora, al final).
+**Paso 4 · Preguntas.** Soportes (no / árbol / normales), borde (sin / automático / solo exterior),
+falda (sí / no), calidad (rápida / normal / fina) y relleno (10 / 25 / 40 %). Todo esto se aplica a la
+configuración actual **sin guardarla**, así que lo verás también en la pestaña Impresión.
 
-**Paso 4 · Cuatro preguntas rápidas.** No hay que entender todos los ajustes; con esto sale bien la
-mayoría de las piezas:
+**Paso 5 · Filamento.** Lista de filamentos cargados.
 
-| Pregunta | Cuándo elegir qué |
-| --- | --- |
-| **¿Soportes?** | Figuras, brazos o zonas en el aire → **tipo árbol**. Piezas mecánicas con voladizos planos → **normales**. Si la pieza se aguanta sola → **no** |
-| **¿Borde de adherencia?** | Déjalo en **Automático**. Piezas altas y estrechas que se despegan → **solo exterior** |
-| **¿Falda?** | **Sí, una vuelta** para cebar la boquilla. **No** si quieres ahorrar material |
-| **Calidad** | **Normal (0,2 mm)** casi siempre; **fina** para detalle; **rápida** para pruebas |
-| **Relleno** | 10 % decoración, 25 % uso normal, 40 % resistente |
+**Paso 6 · Laminar.** Al llegar a este paso **lamina solo**, sin botón: muestra el progreso y al
+terminar verás el resultado en 3D detrás del panel, igual que en Vista, con tiempo, gramos, capas y
+velocidad media. Los botones son **Enviar**, **Enviar e imprimir**, **Descargar** y **Compartir**, y
+cada uno te pregunta G-code o `.gcode.3mf`.
 
-Estas respuestas **no modifican tus perfiles guardados**: se aplican como ajustes temporales de la
-sesión (en la pestaña Impresión los verás marcados como cambios sin guardar, y el botón ↺ los
-descarta).
-
-**Paso 5 · Elegir el filamento.** Lista de perfiles de material. Define temperaturas y ventilación.
-
-**Paso 6 · Laminar y actuar.** Pulsa **Laminar ahora**. Al terminar verás una **miniatura** de la
-pieza y cuatro datos: **tiempo estimado**, **filamento**, **capas** y **velocidad media**. Debajo, los
-botones:
-
-- **Enviar a la impresora** — manda el archivo por wifi (deja el trabajo en la impresora).
-- **Enviar e imprimir** — lo manda y empieza a imprimir.
-- **Descargar al teléfono** — guarda el archivo donde tú elijas.
-- **Compartir** — lo manda a otra app (WhatsApp, Drive, correo…).
-
-En los cuatro casos la app pregunta antes el **formato**: *Solo G-code (.gcode)* o *Paquete de
-impresión (.gcode.3mf)*. Si dudas, elige **.gcode.3mf**: lleva las miniaturas y es el que aceptan las
-impresoras por wifi.
-
-Al terminar, **Salir del asistente** te devuelve a la cama con el G-code ya cargado, donde tienes el
-visor completo, **Info impresión** y **Capas**.
-
----
+**Salir cuando quieras.** La ✕ de arriba o **Terminar** cierran el panel y **no se pierde nada**: las
+piezas siguen en la cama, las respuestas quedan aplicadas en la configuración actual (sin guardar) y
+si ya laminaste, el G-code sigue en el visor. Puedes usar el asistente como primer paso y seguir a
+mano después.
 
 ## 1. El mapa de la pantalla (léelo aunque tengas prisa)
 
