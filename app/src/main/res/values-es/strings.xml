@@ -453,4 +453,5 @@
     <string name="LocalServerRotateToken">Cambiar token</string>
     <string name="LocalServerCopied">Dirección copiada</string>
     <string name="LocalServerHelp">Abre esta dirección en el navegador de la PC, en la misma red WiFi. El token va incluido en la dirección.</string>
+    <string name="LocalServerNeedsConfig">Espera a que la app termine de cargar los perfiles y vuelve a intentarlo.</string>
 </resources>

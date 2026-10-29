@@ -162,7 +162,10 @@ public class BedPlateBridge implements PlateBridge {
             f.loadModel(file);
             names.add(file.getName());
             arrange();
-            return Math.max(0, f.getCurrentModel().getObjectsCount() - 1);
+            Model loaded = f.getCurrentModel();
+            int count = loaded == null ? 0 : loaded.getObjectsCount();
+            if (count == 0) throw new IllegalStateException("model_not_loaded");
+            return count - 1;
         } finally {
             busy.set(false);
         }
@@ -196,6 +199,7 @@ public class BedPlateBridge implements PlateBridge {
 
     @Override
     public void applyOptions(Map<String, String> options) {
+        if (options == null) return;
         String printer = options.get("printer");
         String filament = options.get("filament");
         if (SliceBeam.CONFIG != null) {

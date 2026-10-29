@@ -80,6 +80,7 @@ public class SliceBeam extends Application {
     @SuppressLint("ApplySharedPref")
     @Override
     public void onCreate() {
+        ru.ytkab0bp.slicebeam.utils.CrashLog.install(this);
         super.onCreate();
         INSTANCE = this;
         AppLocale.applyOnStartup(this);

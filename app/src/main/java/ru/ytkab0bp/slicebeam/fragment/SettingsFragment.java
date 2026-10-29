@@ -57,6 +57,19 @@ public class SettingsFragment extends ProfileListFragment {
     private void showLocalServerDialog() {
         Context ctx = getContext();
         if (ctx == null) return;
+        try {
+            showLocalServerDialogInternal(ctx);
+        } catch (Throwable t) {
+            // Never crash on the settings row: show what broke.
+            new BeamAlertDialogBuilder(ctx)
+                    .setTitle(R.string.LocalServerTitle)
+                    .setMessage(t.getClass().getSimpleName() + ": " + t.getMessage())
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show();
+        }
+    }
+
+    private void showLocalServerDialogInternal(Context ctx) {
         boolean running = ru.ytkab0bp.slicebeam.server.LocalServerService.isRunning();
         String url = ru.ytkab0bp.slicebeam.server.LocalServerService.url(ctx);
         String message = ctx.getString(R.string.LocalServerHelp)

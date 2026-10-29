@@ -35,6 +35,7 @@ public class LocalHttpServer extends NanoHTTPD {
     private final File webDir;
     private final File uploadDir;
     private final String token;
+    private final File logFile;
     private final SliceJob job = new SliceJob();
     private final ExecutorService queue = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "orcam-local-jobs");
@@ -51,12 +52,19 @@ public class LocalHttpServer extends NanoHTTPD {
     private volatile int authFailures;
     private volatile boolean slicing;
 
-    public LocalHttpServer(int port, PlateBridge bridge, File webDir, File uploadDir, String token) throws java.io.IOException {
+    public LocalHttpServer(int port, PlateBridge bridge, File webDir, File uploadDir, String token)
+            throws java.io.IOException {
+        this(port, bridge, webDir, uploadDir, token, null);
+    }
+
+    public LocalHttpServer(int port, PlateBridge bridge, File webDir, File uploadDir, String token,
+                           File logFile) throws java.io.IOException {
         super(port);
         this.bridge = bridge;
         this.webDir = webDir;
         this.uploadDir = uploadDir;
         this.token = token;
+        this.logFile = logFile;
         if (!uploadDir.exists()) uploadDir.mkdirs();
         start(SOCKET_READ_TIMEOUT, true);
     }
@@ -114,6 +122,8 @@ public class LocalHttpServer extends NanoHTTPD {
                     return slice();
                 case "/api/job":
                     return text(Status.OK, job.toJson());
+                case "/api/log":
+                    return log();
                 case "/api/gcode":
                     return deliver(false);
                 case "/api/package":
@@ -227,6 +237,20 @@ public class LocalHttpServer extends NanoHTTPD {
             }
         });
         return text(Status.ACCEPTED, job.toJson());
+    }
+
+    /** Last crash trace, so a device without adb can still be diagnosed from the browser. */
+    private Response log() {
+        if (logFile == null || !logFile.isFile()) {
+            return text(Status.OK, "{\"log\":\"\"}");
+        }
+        try {
+            byte[] bytes = java.nio.file.Files.readAllBytes(logFile.toPath());
+            return newFixedLengthResponse(Status.OK, "text/plain; charset=utf-8",
+                    new java.io.ByteArrayInputStream(bytes), bytes.length);
+        } catch (Exception e) {
+            return text(Status.INTERNAL_ERROR, "{\"error\":\"log_unreadable\"}");
+        }
     }
 
     private Response deliver(boolean asPackage) {

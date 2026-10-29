@@ -453,4 +453,5 @@
     <string name="LocalServerRotateToken">Change token</string>
     <string name="LocalServerCopied">Address copied</string>
     <string name="LocalServerHelp">Open this address in the PC browser, on the same WiFi network. The token is part of the address.</string>
+    <string name="LocalServerNeedsConfig">Wait for the app to finish loading the profiles and try again.</string>
 </resources>

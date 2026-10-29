@@ -33,7 +33,6 @@ import java.util.UUID;
 import ru.ytkab0bp.slicebeam.R;
 import ru.ytkab0bp.slicebeam.SliceBeam;
 import ru.ytkab0bp.slicebeam.fragment.BedFragment;
-import ru.ytkab0bp.slicebeam.utils.Prefs;
 
 /**
  * Keeps the local HTTP server alive while the app is open.
@@ -48,6 +47,7 @@ public class LocalServerService extends Service {
 
     private static final String CHANNEL = "orcam_local_server";
     private static final int NOTIFICATION_ID = 0x0CA1;
+    private static final String TOKEN_PREFS = "orcam_local_server";
     private static final String KEY_TOKEN = "local_server_token";
     private static final long IDLE_LIMIT_MS = 30L * 60L * 1000L;
 
@@ -95,16 +95,23 @@ public class LocalServerService extends Service {
         context.stopService(new Intent(context, LocalServerService.class));
     }
 
+    /** Own preference file: Prefs is filled by a boot task and can still be null here. */
+    private static android.content.SharedPreferences tokenPrefs(Context context) {
+        return context.getApplicationContext()
+                .getSharedPreferences(TOKEN_PREFS, Context.MODE_PRIVATE);
+    }
+
     /** Token shown in the settings screen; generated once per install. */
     public static String token(Context context) {
-        String stored = Prefs.getPrefs().getString(KEY_TOKEN, null);
+        android.content.SharedPreferences prefs = tokenPrefs(context);
+        String stored = prefs.getString(KEY_TOKEN, null);
         if (stored != null && stored.length() >= 8) return stored;
         return rotateToken(context);
     }
 
     public static String rotateToken(Context context) {
         String token = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-        Prefs.getPrefs().edit().putString(KEY_TOKEN, token).apply();
+        tokenPrefs(context).edit().putString(KEY_TOKEN, token).apply();
         return token;
     }
 
@@ -159,11 +166,17 @@ public class LocalServerService extends Service {
         }
 
         try {
+            if (SliceBeam.CONFIG == null || SliceBeam.CONFIG.printerConfigs == null) {
+                notifyMessage(getString(R.string.LocalServerNeedsConfig));
+                stopSelf();
+                return START_NOT_STICKY;
+            }
             File web = new File(getFilesDir(), "web");
             copyWebAssets(web);
             File uploads = new File(getCacheDir(), "server");
             server = new LocalHttpServer(LocalHttpServer.DEFAULT_PORT,
-                    new BedPlateBridge(bed), web, uploads, token(this));
+                    new BedPlateBridge(bed), web, uploads, token(this),
+                    ru.ytkab0bp.slicebeam.utils.CrashLog.file(this));
             running = true;
             keepAwake(true);
             handler.postDelayed(idleCheck, 60_000L);

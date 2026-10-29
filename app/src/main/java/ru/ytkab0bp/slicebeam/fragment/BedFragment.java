@@ -353,6 +353,7 @@ public class BedFragment extends Fragment {
 
     /** PNG of what the plate looks like right now, scaled down for the local server UI. */
     public byte[] capturePlatePng(int maxWidth) {
+        if (glView == null) return null;
         try {
             final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
             final android.graphics.Bitmap[] holder = new android.graphics.Bitmap[1];
