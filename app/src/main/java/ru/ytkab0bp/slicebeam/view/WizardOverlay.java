@@ -388,72 +388,11 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         addRow(R.drawable.square_stack_up_outline_28,
                 ctx.getString(R.string.WizardBedCount, count), null, null, false);
 
-        int selected = selectedObject();
-        boolean hasPart = selected >= 0;
-
-        LinearLayout tools = new LinearLayout(ctx);
-        tools.setOrientation(LinearLayout.HORIZONTAL);
-        tools.addView(iconButton(R.drawable.grid_layout_outline_28,
-                ctx.getString(R.string.WizardBedArrange), v -> arrange()), weighted(1f));
-        tools.addView(unitChip("%", hasPart && !scaleInMm), weighted(0.8f));
-        tools.addView(unitChip("mm", hasPart && scaleInMm), weighted(0.8f));
-        content.addView(tools, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        if (!hasPart) {
-            addNote(ctx.getString(R.string.WizardScaleSelectPart));
-            addNote(ctx.getString(R.string.WizardBedGestureHint));
-            return;
-        }
-
-        if (selected != syncedObject) {
-            ensurePart(selected);
-            syncedObject = selected;
-            refreshPendingFromApplied();
-        }
-        addRow(R.drawable.picture_stack_outline_28,
-                ctx.getString(R.string.WizardScaleSelected, selected + 1), null, null, false);
-
-        // One axis at a time, with a wheel big enough for a finger.
-        LinearLayout axisRow = new LinearLayout(ctx);
-        axisRow.setOrientation(LinearLayout.HORIZONTAL);
-        for (int axis = 0; axis < 3; axis++) {
-            final int which = axis;
-            TextView chip = new TextView(ctx);
-            chip.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
-            chip.setGravity(Gravity.CENTER);
-            chip.setPadding(ViewUtils.dp(8), ViewUtils.dp(10), ViewUtils.dp(8), ViewUtils.dp(10));
-            chip.setOnClickListener(v -> {
-                editingAxis = which;
-                render();
-            });
-            axisChips[axis] = chip;
-            axisRow.addView(chip, weighted(1f));
-        }
-        content.addView(axisRow, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        updateAxisChips();
-
-        content.addView(bigPicker(), new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewUtils.dp(150)));
-
-        LinearLayout confirm = new LinearLayout(ctx);
-        confirm.setOrientation(LinearLayout.HORIZONTAL);
-        ImageView lock = new ImageView(ctx);
-        lock.setImageResource(scaleLocked ? R.drawable.ic_padlock_locked : R.drawable.ic_padlock_open);
-        lock.setColorFilter(ThemesRepo.getColor(scaleLocked
-                ? android.R.attr.colorAccent : android.R.attr.textColorSecondary));
-        lock.setPadding(ViewUtils.dp(12), ViewUtils.dp(14), ViewUtils.dp(12), ViewUtils.dp(14));
-        lock.setOnClickListener(v -> {
-            scaleLocked = !scaleLocked;
-            render();
-        });
-        confirm.addView(lock, new LinearLayout.LayoutParams(ViewUtils.dp(52), ViewUtils.dp(54)));
-        confirm.addView(iconButton(R.drawable.done_outline_28,
-                ctx.getString(R.string.WizardScaleApply), v -> commitScale()), weighted(1.6f));
-        content.addView(confirm, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        addNote(ctx.getString(R.string.WizardScaleLockHint));
+        // Scaling has its own screen (BedFragment.showScale) so it behaves like the tools menu.
+        addIconButton(R.drawable.menu_scale_28, ctx.getString(R.string.WizardBedOpenScale),
+                v -> bed.showScale());
+        addIconButton(R.drawable.grid_layout_outline_28, ctx.getString(R.string.WizardBedArrange),
+                v -> bed.arrangePlate());
         addNote(ctx.getString(R.string.WizardBedGestureHint));
     }
 
@@ -771,7 +710,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                         render();
                     }), weighted(1f));
         }
-        if (step == STEP_FILAMENT) {
+        if (step == STEP_TEMP_FLOW) {
             footer.addView(iconButton(R.drawable.done_outline_28,
                     ctx.getString(R.string.WizardFinishNoSlice), v -> bed.dismissWizard()), weighted(1.6f));
         }
@@ -832,58 +771,6 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         bed.invalidateModel();
     }
 
-    private int selectedObject() {
-        try {
-            return bed.getGlView().getRenderer().getSelectedObject();
-        } catch (Exception e) {
-            return -1;
-        }
-    }
-
-
-    /** Keeps the pending numbers in sync with the part whenever the step is shown. */
-    /**
-     * Base size and applied factor per part, kept here on purpose: the engine caches object boxes and
-     * its scale read-back does not survive a session, so re-reading them made scaling relative.
-     */
-    private void ensurePart(int index) {
-        if (partApplied.containsKey(index)) return;
-        float[] base = new float[]{10f, 10f, 10f};
-        try {
-            Model model = bed.getCurrentModel();
-            if (model != null) {
-                ru.ytkab0bp.slicebeam.utils.Vec3d min = new ru.ytkab0bp.slicebeam.utils.Vec3d();
-                ru.ytkab0bp.slicebeam.utils.Vec3d max = new ru.ytkab0bp.slicebeam.utils.Vec3d();
-                model.getBoundingBoxExact(index, min, max);
-                base[0] = (float) Math.max(0.1, max.x - min.x);
-                base[1] = (float) Math.max(0.1, max.y - min.y);
-                base[2] = (float) Math.max(0.1, max.z - min.z);
-            }
-        } catch (Throwable ignored) {
-        }
-        partBase.put(index, base);
-        partApplied.put(index, new float[]{1f, 1f, 1f});
-    }
-
-    private float baseOf(int axis) {
-        float[] base = partBase.get(syncedObject);
-        return base == null ? 10f : base[axis];
-    }
-
-    private float appliedOf(int axis) {
-        float[] applied = partApplied.get(syncedObject);
-        return applied == null ? 1f : applied[axis];
-    }
-
-    private void refreshPendingFromApplied() {
-        appliedX = appliedOf(0);
-        appliedY = appliedOf(1);
-        appliedZ = appliedOf(2);
-        pendingX = scaleInMm ? appliedX * baseOf(0) : appliedX * 100f;
-        pendingY = scaleInMm ? appliedY * baseOf(1) : appliedY * 100f;
-        pendingZ = scaleInMm ? appliedZ * baseOf(2) : appliedZ * 100f;
-    }
-
 
     /** Keeps the pending numbers in sync with the part whenever the step is shown. */
     private void syncScaleValues(int index) {
@@ -918,102 +805,6 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         pendingX = scaleInMm ? appliedX * baseX : appliedX * 100f;
         pendingY = scaleInMm ? appliedY * baseY : appliedY * 100f;
         pendingZ = scaleInMm ? appliedZ * baseZ : appliedZ * 100f;
-    }
-
-    private float stepSize() {
-        return scaleInMm ? 1f : 5f;
-    }
-
-    private float maxValue() {
-        return scaleInMm ? 400f : 500f;
-    }
-
-    /** Wheel for the axis being edited; changes are stored as pending until Apply. */
-    private View bigPicker() {
-        android.widget.NumberPicker picker = new android.widget.NumberPicker(ctx);
-        picker.setMinValue(0);
-        picker.setMaxValue(Math.round(maxValue() / stepSize()) - 1);
-        picker.setWrapSelectorWheel(true);
-        picker.setFormatter(index -> formatValue((index + 1) * stepSize()));
-        picker.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
-        applyPickerColors(picker);
-        picker.setValue(indexOf(pending(editingAxis)));
-        picker.setOnValueChangedListener((p, oldValue, newValue) -> {
-            if (syncing) return;
-            setPending(editingAxis, (newValue + 1) * stepSize());
-            syncing = true;
-            try {
-                if (scaleLocked) {
-                    p.setValue(p.getValue());
-                }
-            } finally {
-                syncing = false;
-            }
-            updateAxisChips();
-            updateValuesLabel();
-        });
-        return picker;
-    }
-
-    /** The three axis chips double as the value readout. */
-    private void updateAxisChips() {
-        String unit = scaleInMm ? " mm" : " %";
-        for (int axis = 0; axis < 3; axis++) {
-            TextView chip = axisChips[axis];
-            if (chip == null) continue;
-            String name = axis == 0 ? "X" : axis == 1 ? "Y" : "Z";
-            chip.setText(name + "\n" + formatValue(pending(axis)) + unit);
-            boolean active = axis == editingAxis;
-            GradientDrawable background = new GradientDrawable();
-            background.setCornerRadius(ViewUtils.dp(6));
-            background.setColor(ThemesRepo.getColor(active
-                    ? android.R.attr.colorAccent : android.R.attr.colorControlHighlight));
-            chip.setBackground(background);
-            chip.setTextColor(ThemesRepo.getColor(active
-                    ? R.attr.textColorOnAccent : android.R.attr.textColorPrimary));
-        }
-    }
-
-    private int indexOf(float value) {
-        int index = Math.round(value / stepSize()) - 1;
-        return Math.max(0, Math.min(Math.round(maxValue() / stepSize()) - 1, index));
-    }
-
-    private float pending(int which) {
-        return which == 0 ? pendingX : which == 1 ? pendingY : pendingZ;
-    }
-
-    private void setPending(int which, float value) {
-        value = Math.max(stepSize(), Math.min(maxValue(), value));
-        if (scaleLocked) {
-            if (scaleInMm) {
-                // In mm, "locked" means keep the proportions: scale the other axes by the same ratio.
-                float base = which == 0 ? baseX : which == 1 ? baseY : baseZ;
-                float ratio = base <= 0 ? 1f : value / base;
-                pendingX = baseX * ratio;
-                pendingY = baseY * ratio;
-                pendingZ = baseZ * ratio;
-            } else {
-                pendingX = value;
-                pendingY = value;
-                pendingZ = value;
-            }
-        } else {
-            if (which == 0) pendingX = value;
-            if (which == 1) pendingY = value;
-            if (which == 2) pendingZ = value;
-        }
-    }
-
-
-    /** Readable echo of the three carousels: the wheel text depends on the system theme. */
-    private void updateValuesLabel() {
-        if (valuesLabel == null) return;
-        String unit = scaleInMm ? " mm" : " %%";
-        valuesLabel.setText(String.format(java.util.Locale.getDefault(),
-                "X " + formatValue(pendingX) + unit
-                        + "   Y " + formatValue(pendingY) + unit
-                        + "   Z " + formatValue(pendingZ) + unit));
     }
 
     /**
@@ -1072,64 +863,6 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
             }
             type = type.getSuperclass();
         }
-    }
-
-    private String formatValue(float value) {
-        return scaleInMm ? String.format(java.util.Locale.getDefault(), "%.1f", value)
-                : String.valueOf(Math.round(value));
-    }
-
-    /**
-     * Applies the pending numbers to the selected part, as an absolute target: the delta is computed
-     * against the factor this panel already applied for that part.
-     */
-    private void commitScale() {
-        int index = selectedObject();
-        Model model = bed.getCurrentModel();
-        if (index < 0 || model == null) return;
-        ensurePart(index);
-
-        float targetX = scaleInMm ? pendingX / Math.max(0.1f, baseOf(0)) : pendingX / 100f;
-        float targetY = scaleInMm ? pendingY / Math.max(0.1f, baseOf(1)) : pendingY / 100f;
-        float targetZ = scaleInMm ? pendingZ / Math.max(0.1f, baseOf(2)) : pendingZ / 100f;
-
-        float rx = targetX / Math.max(0.001f, appliedOf(0));
-        float ry = targetY / Math.max(0.001f, appliedOf(1));
-        float rz = targetZ / Math.max(0.001f, appliedOf(2));
-        if (Math.abs(rx - 1f) < 1e-4 && Math.abs(ry - 1f) < 1e-4 && Math.abs(rz - 1f) < 1e-4) return;
-
-        try {
-            model.scale(index, rx, ry, rz);
-            model.ensureOnBed(index);
-            model.resetBoundingBox();
-        } catch (Throwable ignored) {
-        }
-        partApplied.put(index, new float[]{targetX, targetY, targetZ});
-        appliedX = targetX;
-        appliedY = targetY;
-        appliedZ = targetZ;
-        bed.invalidateModel();
-        render();
-    }
-
-    private View unitChip(String text, boolean active) {
-        TextView chip = new TextView(ctx);
-        chip.setText(text);
-        chip.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
-        chip.setGravity(Gravity.CENTER);
-        chip.setBackground(ViewUtils.createRipple(
-                ThemesRepo.getColor(active ? android.R.attr.colorAccent : android.R.attr.colorControlHighlight),
-                ThemesRepo.getColor(active ? android.R.attr.colorAccent : android.R.attr.colorControlHighlight),
-                ViewUtils.dp(6)));
-        chip.setTextColor(ThemesRepo.getColor(active
-                ? R.attr.textColorOnAccent : android.R.attr.textColorPrimary));
-        chip.setOnClickListener(v -> {
-            scaleInMm = text.equals("mm");
-            refreshPendingFromApplied();
-            render();
-        });
-        chip.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewUtils.dp(54)));
-        return chip;
     }
 
     /**

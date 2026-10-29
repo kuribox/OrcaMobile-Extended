@@ -120,6 +120,8 @@ public class FileMenu extends ListBedMenu {
         List<SimpleRecyclerItem> list = new ArrayList<>(Arrays.asList(
                 new BedMenuItem(R.string.MenuWizard, R.drawable.magic_wand_outline_28).setShiny(true)
                         .onClick(v -> openWizard()),
+                new BedMenuItem(R.string.MenuFileScale, R.drawable.menu_scale_28)
+                        .setEnabled(hasModel()).onClick(v -> fragment.showScale()),
                 new BedMenuItem(R.string.MenuFileOpen, R.drawable.folder_simple_plus_outline_28).onClick(v -> {
                     if (!fragment.getGlView().getRenderer().getBed().isValid()) {
                         Toast.makeText(fragment.getContext(), R.string.BedConfigurationError, Toast.LENGTH_SHORT).show();

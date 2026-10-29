@@ -145,7 +145,7 @@ edits (`SliceBeam.LIVE_DIFF_PRINT`) and a finished slice stays in the viewer.
 | Step | What it does |
 | --- | --- |
 | 1 · Parts | Opens the document picker with `EXTRA_ALLOW_MULTIPLE`, so every STL/3MF can be chosen at once. Each part is loaded, auto-oriented and arranged; the list allows removing one with the ✕ button. |
-| 2 · Plate | The real 3D plate is live under the panel: drag to move, two fingers to rotate, pinch to zoom. The panel adds *Arrange* (`Bed3D.arrange`) and scaling of the selected part. |
+| 2 · Plate | The real 3D plate is live under the panel: drag to move, two fingers to rotate, pinch to zoom. The panel adds *Arrange* (`Bed3D.arrange`) and *Scale*, which opens the standalone scaling screen. |
 | 3 · Printer | Lists the printer profiles and switches the active preset. |
 | 4 · Quality | Lists the **print profiles**: quality is the profile itself (layer height, speeds, process temperatures), not a bare number. |
 | 5 · Options | Supports (none / tree / normal), adhesion brim (none / automatic / outer), skirt and infill (10 / 25 / 40 %), written **into the chosen print profile** and saved, so changing the quality later does not discard them. Requires a profile: without one the step only explains how to get it. |
@@ -153,8 +153,11 @@ edits (`SliceBeam.LIVE_DIFF_PRINT`) and a finished slice stays in the viewer.
 | 7 · Temperature and volumetric speed | Nozzle temperature and maximum volumetric speed (the melt-rate ceiling; 0 removes it), the two filament values changed most often; written into the chosen filament profile and saved. |
 | 8 · Slice | Slicing starts on entering the step (no button), with a spinner, a 3-minute timeout and `Throwable` handling so an out-of-memory is an error message, not a frozen panel. The result loads through `BedFragment.loadGCode`, so the preview is the View tab's own, followed by send / send and print / download / share on their own row. |
 
-Scaling applies to the **selected part** (tap one first) and has two units (**%** of the original and
-**mm**), three `NumberPicker` carousels (X / Y / Z, wrap-around, keyboard blocked) and a padlock: closed keeps the
+Scaling is its own screen (`ScaleOverlay`, opened from *View → File → Scale* or from the assistant),
+built with the same `PositionScrollView` tracks and the same transform maths as the tools menu: three
+bars for X / Y / Z showing percentage and resulting millimetres, plus *Back to 100 %*. It keeps its own
+bookkeeping — each commit sends `target / already applied` — so the numbers mean what they say and 100 %
+is the size the part had when the screen opened. The old wizard fields and their padlock are gone: closed keeps the
 proportions — in mm the other axes follow the same ratio, they are not forced to the same millimetre
 value — open lets one dimension change. Nothing is applied until *Apply*, and the delta is computed against
 what the panel already applied — the engine caches object boxes, so re-reading them made every Apply

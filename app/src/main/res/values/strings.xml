@@ -451,4 +451,14 @@
     <string name="WizardTempFlowNote">It caps how much material the nozzle can melt per second. PLA around 12–21 mm³/s, PETG 10–15 mm³/s. 0 removes the limit and prints as fast as the rest of the profile allows.</string>
     <string name="WizardFilamentMissing">No active filament. Go back one step and pick one.</string>
     <string name="WizardTempFlowVolumetric">Maximum volumetric speed</string>
+    <string name="ScaleTitle">Scale</string>
+    <string name="ScaleSelectPart">Tap a part on the plate to scale it.</string>
+    <string name="ScaleRetry">Check selection</string>
+    <string name="ScaleReset">Back to 100 %</string>
+    <string name="ScaleDone">Done</string>
+    <string name="ScaleAxisX">X</string>
+    <string name="ScaleAxisY">Y</string>
+    <string name="ScaleAxisZ">Z</string>
+    <string name="WizardBedOpenScale">Scale (separate screen)</string>
+    <string name="MenuFileScale">Scale</string>
 </resources>

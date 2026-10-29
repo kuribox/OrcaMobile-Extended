@@ -19,11 +19,12 @@ Puedes volver a pulsarlo para añadir más y quitar cualquiera con la **✕** de
 **Paso 2 · La cama.** El panel baja y deja ver la cama real. Arriba puedes **arrastrar** una pieza
 para moverla, **girarla con dos dedos** y **pellizcar** para acercar la vista. En el panel:
 
+- **Escalar (pantalla aparte)** — abre una pantalla con las tres barras X / Y / Z, iguales a las de
+  **Herramientas**. Toca la pieza antes: cada barra muestra el porcentaje y los milímetros resultantes,
+  y **Volver a 100 %** la deja como estaba.
 - **Organizar** — reparte las piezas sin que se solapen.
-- **Escalar**: primero **toca la pieza** que quieres cambiar para seleccionarla (sin seleccionar no
-  hay escalado). Elige **%** o **mm** y mueve los carruseles **X / Y / Z**; con el **candado cerrado**
-  las tres medidas cambian juntas y la pieza no se deforma, abierto puedes cambiar una sola. Nada
-  cambia hasta pulsar **Aplicar**.
+
+También tienes **Escalar** en **Vista → Archivo**.
 
 **Paso 3 · Impresora.** Lista de perfiles de impresora; el que está en uso va resaltado.
 
@@ -36,7 +37,7 @@ perfil que elegiste en el paso anterior**, así que no se pierden al cambiar de 
 
 **Paso 6 · Filamento.** Lista de filamentos cargados.
 
-**Paso 7 · Temperatura y velocidad volumétrica.** Los dos valores de filamento que más se tocan:
+**Paso 7 · Temperatura y velocidad volumétrica.** (aquí está **Terminar sin laminar**) Los dos valores de filamento que más se tocan:
 **temperatura de boquilla** (PLA sobre 200–215 °C, PETG 230–240 °C) y **velocidad volumétrica máxima**
 (el techo de material fundido por segundo: PLA 12–21 mm³/s, PETG 10–15; 0 quita el límite). Se guardan
 en el filamento elegido.
