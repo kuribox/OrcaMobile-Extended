@@ -335,7 +335,7 @@
     <string name="WizardPrinterTitle">Printer</string>
     <string name="WizardPrinterExplain">Choose the printer you will use. Its profile provides the bed size, layer height and the address to send to. If it is not listed, leave the assistant and create it in the Printer tab.</string>
     <string name="WizardOptionsTitle">How to print</string>
-    <string name="WizardOptionsExplain">Four decisions and done. The defaults work for most parts; you can fine-tune later in the Print tab.</string>
+    <string name="WizardOptionsExplain">Four settings stored in the chosen profile. The defaults work for most parts; the Print tab has everything else.</string>
     <string name="WizardSupports">Supports for overhangs</string>
     <string name="WizardSupportsNone">None</string>
     <string name="WizardSupportsNoneHint">Solid parts with a wide base and no overhangs</string>
@@ -343,7 +343,7 @@
     <string name="WizardSupportsTreeHint">Recommended for figures, arms and details. Easy to remove</string>
     <string name="WizardSupportsNormal">Normal</string>
     <string name="WizardSupportsNormalHint">Mechanical parts with flat overhangs</string>
-    <string name="WizardBrim">Brim (keeps the base stuck)</string>
+    <string name="WizardBrim">Adhesion brim (the flange that sticks to the bed)</string>
     <string name="WizardBrimNone">No brim</string>
     <string name="WizardBrimNoneHint">The part sits well and the filament sticks</string>
     <string name="WizardBrimAuto">Automatic (recommended)</string>
@@ -397,7 +397,7 @@
     <string name="WizardLoadingModel">Loading the model…</string>
     <string name="WizardOpenFailed">The guided assistant could not be opened</string>
     <string name="WizardBedTitle">The plate</string>
-    <string name="WizardBedExplain">This is your model. Drag a part with one finger to move it, use two fingers to rotate it and pinch to zoom.</string>
+    <string name="WizardBedExplain">This is your model. Drag a part to move it, use two fingers to rotate and pinch to zoom. To resize, tap a part to select it and use the scaling below.</string>
     <string name="WizardBedEmpty">No parts yet. Go back and choose a file.</string>
     <string name="WizardBedPiece">Part %1$d</string>
     <string name="WizardBedPieceSize">%1$d × %2$d × %3$d mm</string>
@@ -427,7 +427,7 @@
     <string name="WizardFinishNoSlice">Finish without slicing</string>
     <string name="WizardScaleLockHint">Padlock closed: X, Y and Z change together, so the part keeps its shape. Padlock open: you can change one dimension only.</string>
     <string name="WizardRetrySlice">Retry</string>
-    <string name="WizardScaleSelectPart">To resize, first tap a part on the plate: it turns orange.</string>
+    <string name="WizardScaleSelectPart">Scaling: tap a part on the plate to select it first, then change its size per axis.</string>
     <string name="WizardScaleSelected">Scaling part %1$d</string>
     <string name="WizardScaleApply">Apply</string>
     <string name="WizardQualityLow">Low · 0.28</string>
@@ -437,4 +437,10 @@
     <string name="WizardSliceTimeout">Slicing stopped responding (over 3 minutes). Try fewer parts or a coarser quality.</string>
     <string name="WizardSliceOutOfMemory">The app ran out of memory while slicing. Reduce the number of parts or use a coarser quality.</string>
     <string name="WizardInfillNote">That is the inside of the part: 25 % covers almost everything, 40 % when it must hold weight.</string>
+    <string name="WizardProfileTitle">Quality</string>
+    <string name="WizardProfileExplain">Quality is a full print profile: layer height, speeds, process temperatures and the rest. Pick one; the next step adjusts supports, adhesion brim, skirt and infill, and those are saved into this profile.</string>
+    <string name="WizardProfileNoProfiles">No print profiles loaded. Leave the assistant and load one in the Print tab.</string>
+    <string name="WizardProfileNote">The settings in the next steps are saved into the profile you pick here.</string>
+    <string name="WizardOptionsNeedProfile">Pick the quality first: it is the profile these settings are stored in.</string>
+    <string name="WizardOptionsInProfile">Stored in the profile: %1$s</string>
 </resources>

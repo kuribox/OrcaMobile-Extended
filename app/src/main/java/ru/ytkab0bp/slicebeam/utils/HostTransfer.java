@@ -86,6 +86,23 @@ public final class HostTransfer {
     // ------------------------------------------------------------------ send
 
     /**
+     * Protocol the profile really uses. Profiles saved from older builds or by hand can carry the type
+     * with different casing, or none at all: without normalising, the slice menu hid the send buttons
+     * while the upload below still worked (it compares case-insensitively).
+     */
+    public static String effectiveHostType(ConfigObject printer) {
+        if (printer == null) return "";
+        String type = printer.get("host_type");
+        type = type == null ? "" : type.trim().toLowerCase(java.util.Locale.ROOT);
+        if (type.isEmpty()) {
+            String serial = firstNonEmpty(printer.get("flashforge_serial_number"), printer.get("printhost_user"));
+            String code = firstNonEmpty(printer.get("printhost_apikey"), printer.get("printhost_password"));
+            type = (!TextUtils.isEmpty(serial) && !TextUtils.isEmpty(code)) ? "flashforge" : "octoprint";
+        }
+        return type;
+    }
+
+    /**
      * Uploads the payload to the printer configured in the active profile.
      * Blocking: call it from a worker thread.
      */
@@ -96,8 +113,7 @@ public final class HostTransfer {
             return;
         }
 
-        String type = printer.get("host_type");
-        if (TextUtils.isEmpty(type)) type = "octoprint";
+        String type = effectiveHostType(printer);
         String host = printer.get("print_host");
         if (TextUtils.isEmpty(host)) {
             callback.onResult(false, SliceBeam.INSTANCE.getString(

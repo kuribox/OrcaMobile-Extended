@@ -120,13 +120,9 @@ public class SliceMenu extends ListBedMenu {
                         }, Prefs.isPerformanceModeEnabled())
         ));
         ConfigObject obj = SliceBeam.CONFIG.findPrinter(SliceBeam.CONFIG.presets.get("printer"));
-        assertTrue(obj != null);
-        String type = obj.get("host_type");
-        if (type == null) type = "octoprint";
-        String host = obj.get("print_host");
-        String apiKey = obj.get("printhost_apikey");
+        String type = HostTransfer.effectiveHostType(obj);
+        String host = obj == null ? null : obj.get("print_host");
         if (SUPPORTED_SEND.contains(type) && !TextUtils.isEmpty(host)) {
-            String finalType = type;
             items.add(new BedMenuItem(R.string.MenuSliceSendToPrinter, R.drawable.send_outline_28).onClick(v -> upload(false)));
             items.add(new BedMenuItem(R.string.MenuSliceSendToPrinterAndPrint, R.drawable.send_28).onClick(v -> upload(true)));
         }

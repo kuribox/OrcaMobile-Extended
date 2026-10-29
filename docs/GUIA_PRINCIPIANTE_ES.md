@@ -10,7 +10,7 @@ Todos los nombres de botones y ajustes son los que verás **en español**.
 
 El asistente **no es otra pantalla**: es un panel que se abre encima de la Vista. Todo lo que ves
 detrás es la cama de verdad, con tus modelos, así que puedes moverlos con el dedo mientras el panel
-te guía. Seis pasos:
+te guía. Siete pasos:
 
 **Paso 1 · Archivos.** Al pulsar **Vista → Archivo → Asistente** aparece el panel, no el selector.
 Pulsa **Elegir archivos STL / 3MF** y marca **varias piezas a la vez**; se colocan todas en la cama.
@@ -20,19 +20,23 @@ Puedes volver a pulsarlo para añadir más y quitar cualquiera con la **✕** de
 para moverla, **girarla con dos dedos** y **pellizcar** para acercar la vista. En el panel:
 
 - **Organizar** — reparte las piezas sin que se solapen.
-- **Escalar**: primero **toca la pieza** que quieres cambiar (se marca en naranja). Elige **%** o
-  **mm** y mueve los carruseles **X / Y / Z**; con el **candado cerrado** las tres medidas cambian
-  juntas y la pieza no se deforma, abierto puedes cambiar una sola. Nada cambia hasta **Aplicar**.
+- **Escalar**: primero **toca la pieza** que quieres cambiar para seleccionarla (sin seleccionar no
+  hay escalado). Elige **%** o **mm** y mueve los carruseles **X / Y / Z**; con el **candado cerrado**
+  las tres medidas cambian juntas y la pieza no se deforma, abierto puedes cambiar una sola. Nada
+  cambia hasta pulsar **Aplicar**.
 
 **Paso 3 · Impresora.** Lista de perfiles de impresora; el que está en uso va resaltado.
 
-**Paso 4 · Preguntas.** Soportes (no / árbol / normales), borde (sin / automático / solo exterior),
-falda (sí / no), calidad (rápida / normal / fina) y relleno (10 / 25 / 40 %). Todo esto se aplica a la
-configuración actual **sin guardarla**, así que lo verás también en la pestaña Impresión.
+**Paso 4 · Calidad.** La calidad es un **perfil de impresión** completo (altura de capa, velocidades,
+temperaturas). Aquí eliges cuál usar; el que está activo va resaltado y al elegir otro se guarda.
 
-**Paso 5 · Filamento.** Lista de filamentos cargados.
+**Paso 5 · Ajustes.** Soportes (ninguno / árbol / normales), **borde de adherencia** (ninguno /
+automático / exterior), falda (sí / no) y relleno (10 / 25 / 40 %). Estos cuatro se guardan **en el
+perfil que elegiste en el paso anterior**, así que no se pierden al cambiar de calidad.
 
-**Paso 6 · Laminar.** Al llegar a este paso **lamina solo**, sin botón: muestra el progreso y al
+**Paso 6 · Filamento.** Lista de filamentos cargados.
+
+**Paso 7 · Laminar.** Al llegar a este paso **lamina solo**, sin botón: muestra el progreso y al
 terminar verás el resultado en 3D detrás del panel, igual que en Vista, con tiempo, gramos, capas y
 velocidad media. Los botones son **Enviar**, **Enviar e imprimir**, **Descargar** y **Compartir**, y
 cada uno te pregunta G-code o `.gcode.3mf`.

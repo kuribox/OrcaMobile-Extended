@@ -57,10 +57,11 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private static final int STEP_FILES = 0;
     private static final int STEP_BED = 1;
     private static final int STEP_PRINTER = 2;
-    private static final int STEP_OPTIONS = 3;
-    private static final int STEP_FILAMENT = 4;
-    private static final int STEP_SLICE = 5;
-    private static final int STEP_COUNT = 6;
+    private static final int STEP_PROFILE = 3;
+    private static final int STEP_OPTIONS = 4;
+    private static final int STEP_FILAMENT = 5;
+    private static final int STEP_SLICE = 6;
+    private static final int STEP_COUNT = 7;
 
     private static final Pattern TIME_COMMENT = Pattern.compile("(?i)^;\\s*estimated printing time[^=]*=\\s*(.*)$");
     private static final Pattern WEIGHT_COMMENT = Pattern.compile("(?i)^;\\s*total filament weight \\[g\\]\\s*=\\s*(.*)$");
@@ -101,6 +102,9 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private boolean scaleLocked = true;
     private boolean syncing;
     private int syncedObject = -1;
+    private float appliedX = 1f;
+    private float appliedY = 1f;
+    private float appliedZ = 1f;
     private boolean syncedInMm;
     private android.widget.NumberPicker pickerX;
     private android.widget.NumberPicker pickerY;
@@ -331,6 +335,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
             case STEP_FILES: renderFiles(); break;
             case STEP_BED: renderBed(); break;
             case STEP_PRINTER: renderPrinter(); break;
+            case STEP_PROFILE: renderProfile(); break;
             case STEP_OPTIONS: renderOptions(); break;
             case STEP_FILAMENT: renderFilament(); break;
             default: renderSlice(); break;
@@ -460,9 +465,56 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         }
     }
 
+    /** Quality is the print profile itself: it carries layer height, speeds and the rest. */
+    private void renderProfile() {
+        titleView.setText(R.string.WizardProfileTitle);
+        explainView.setText(R.string.WizardProfileExplain);
+
+        if (SliceBeam.CONFIG == null) {
+            addNote(ctx.getString(R.string.WizardProfileNoProfiles));
+            return;
+        }
+        String selected = SliceBeam.CONFIG.presets.get("print");
+        for (ConfigObject profile : SliceBeam.CONFIG.printConfigs) {
+            String title = profile.getTitle();
+            String height = profile.get("layer_height");
+            String detail = TextUtils.isEmpty(height) ? null : height + " mm";
+            addRow(R.drawable.square_stack_up_outline_28, title, detail,
+                    v -> selectProfile(title), TextUtils.equals(title, selected));
+        }
+        addNote(ctx.getString(R.string.WizardProfileNote));
+    }
+
+    private void selectProfile(String title) {
+        if (SliceBeam.CONFIG == null) return;
+        SliceBeam.CONFIG.presets.put("print", title);
+        try {
+            SliceBeam.ensureCompatibleSelection();
+            SliceBeam.saveConfig();
+        } catch (Throwable ignored) {
+        }
+        invalidateSlice();
+        step = STEP_PROFILE;
+        render();
+    }
+
+    private boolean hasProfile() {
+        if (SliceBeam.CONFIG == null) return false;
+        String title = SliceBeam.CONFIG.presets.get("print");
+        return !TextUtils.isEmpty(title) && SliceBeam.CONFIG.findPrint(title) != null;
+    }
+
     private void renderOptions() {
         titleView.setText(R.string.WizardOptionsTitle);
         explainView.setText(R.string.WizardOptionsExplain);
+
+        if (!hasProfile()) {
+            addNote(ctx.getString(R.string.WizardOptionsNeedProfile));
+            return;
+        }
+        addRow(R.drawable.square_stack_up_outline_28,
+                ctx.getString(R.string.WizardOptionsInProfile,
+                        SliceBeam.CONFIG.presets.get("print")), null, null, false);
 
         addChips(R.string.WizardSupports, new String[]{
                 ctx.getString(R.string.WizardSupportsNone),
@@ -478,13 +530,6 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                 ctx.getString(R.string.WizardSkirtYesShort),
                 ctx.getString(R.string.WizardSkirtNoShort)}, skirt == 1 ? 0 : 1,
                 i -> skirt = i == 0 ? 1 : 0);
-
-        addChips(R.string.WizardQuality, new String[]{
-                ctx.getString(R.string.WizardQualityLow),
-                ctx.getString(R.string.WizardQualityMedium),
-                ctx.getString(R.string.WizardQualityGood),
-                ctx.getString(R.string.WizardQualityHigh)}, quality, i -> quality = i);
-        addNote(ctx.getString(R.string.WizardQualityNote));
 
         addChips(R.string.WizardInfill, new String[]{"10 %", "25 %", "40 %"}, infill, i -> infill = i);
         addNote(ctx.getString(R.string.WizardInfillNote));
@@ -583,12 +628,20 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                         ctx.getString(R.string.WizardShare), v -> askFormat(true, true)), weighted(1f));
             }
             footer.addView(new android.view.View(ctx), weighted(1f));
+            if (slicing) {
+                // While the engine runs there is nothing useful to leave behind.
+                return;
+            }
             footer.addView(iconButton(R.drawable.done_outline_28,
                     ctx.getString(R.string.WizardFinish), v -> bed.dismissWizard()), weighted(1f));
             return;
         }
         View next = iconButton(R.drawable.arrow_left_outline_28,
                 ctx.getString(R.string.WizardNext), true, v -> {
+                    if (step == STEP_PROFILE && !hasProfile()) {
+                        toast(ctx.getString(R.string.WizardOptionsNeedProfile));
+                        return;
+                    }
                     if (step == STEP_OPTIONS) applyAnswers();
                     step = Math.min(STEP_SLICE, step + 1);
                     render();
@@ -648,12 +701,37 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
 
     /** Keeps the pending numbers in sync with the part whenever the step is shown. */
     private void syncScaleValues(int index) {
-        baseX = currentValue(index, 0);
-        baseY = currentValue(index, 1);
-        baseZ = currentValue(index, 2);
-        pendingX = baseX;
-        pendingY = baseY;
-        pendingZ = baseZ;
+        Model model = bed.getCurrentModel();
+        float sx = 1f, sy = 1f, sz = 1f;
+        try {
+            if (model != null) {
+                ru.ytkab0bp.slicebeam.utils.Vec3d factor = new ru.ytkab0bp.slicebeam.utils.Vec3d();
+                model.getScale(index, factor);
+                sx = (float) Math.abs(factor.x);
+                sy = (float) Math.abs(factor.y);
+                sz = (float) Math.abs(factor.z);
+            }
+        } catch (Throwable ignored) {
+        }
+        appliedX = sx <= 0 ? 1f : sx;
+        appliedY = sy <= 0 ? 1f : sy;
+        appliedZ = sz <= 0 ? 1f : sz;
+
+        ru.ytkab0bp.slicebeam.utils.Vec3d min = new ru.ytkab0bp.slicebeam.utils.Vec3d();
+        ru.ytkab0bp.slicebeam.utils.Vec3d max = new ru.ytkab0bp.slicebeam.utils.Vec3d();
+        try {
+            if (model != null) {
+                model.getBoundingBoxExact(index, min, max);
+                baseX = (float) Math.max(0.001, (max.x - min.x) / appliedX);
+                baseY = (float) Math.max(0.001, (max.y - min.y) / appliedY);
+                baseZ = (float) Math.max(0.001, (max.z - min.z) / appliedZ);
+            }
+        } catch (Throwable ignored) {
+        }
+
+        pendingX = scaleInMm ? appliedX * baseX : appliedX * 100f;
+        pendingY = scaleInMm ? appliedY * baseY : appliedY * 100f;
+        pendingZ = scaleInMm ? appliedZ * baseZ : appliedZ * 100f;
     }
 
     private float stepSize() {
@@ -817,27 +895,37 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                 : String.valueOf(Math.round(value));
     }
 
-    /** Applies the pending numbers to the selected part, converting them to a scale delta. */
+    /**
+     * Applies the pending numbers to the selected part.
+     *
+     * <p>The delta is computed against what this panel already applied, never against a fresh read of
+     * the model: the engine caches per-object boxes, so re-reading returned the original size and each
+     * "Apply" multiplied again — or jumped back to the original.
+     */
     private void commitScale() {
         int index = selectedObject();
         Model model = bed.getCurrentModel();
         if (index < 0 || model == null) return;
-        float baseX = currentValue(index, 0);
-        float baseY = currentValue(index, 1);
-        float baseZ = currentValue(index, 2);
-        float rx = baseX <= 0 ? 1f : pendingX / baseX;
-        float ry = baseY <= 0 ? 1f : pendingY / baseY;
-        float rz = baseZ <= 0 ? 1f : pendingZ / baseZ;
+
+        float targetX = scaleInMm ? pendingX / Math.max(0.001f, baseX) : pendingX / 100f;
+        float targetY = scaleInMm ? pendingY / Math.max(0.001f, baseY) : pendingY / 100f;
+        float targetZ = scaleInMm ? pendingZ / Math.max(0.001f, baseZ) : pendingZ / 100f;
+
+        float rx = targetX / Math.max(0.001f, appliedX);
+        float ry = targetY / Math.max(0.001f, appliedY);
+        float rz = targetZ / Math.max(0.001f, appliedZ);
+        if (Math.abs(rx - 1f) < 1e-4 && Math.abs(ry - 1f) < 1e-4 && Math.abs(rz - 1f) < 1e-4) return;
+
         try {
             model.scale(index, rx, ry, rz);
             model.ensureOnBed(index);
             model.resetBoundingBox();
         } catch (Throwable ignored) {
         }
+        appliedX = targetX;
+        appliedY = targetY;
+        appliedZ = targetZ;
         bed.invalidateModel();
-        baseX = pendingX;
-        baseY = pendingY;
-        baseZ = pendingZ;
         syncedObject = index;
         syncedInMm = scaleInMm;
         render();
@@ -863,26 +951,46 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         return chip;
     }
 
+    /**
+     * Writes the answers into the selected print profile and saves it. They used to live in
+     * LIVE_DIFF_PRINT, which is cleared whenever a profile is chosen, so picking another quality in
+     * the assistant silently threw the other answers away.
+     */
     private void applyAnswers() {
-        java.util.Map<String, String> diff = SliceBeam.LIVE_DIFF_PRINT.values;
+        if (SliceBeam.CONFIG == null) return;
+        ConfigObject profile = SliceBeam.CONFIG.findPrint(SliceBeam.CONFIG.presets.get("print"));
+        if (profile == null) return;
+
+        java.util.Map<String, String> values = profile.values;
         switch (supports) {
             case 0:
-                diff.put("enable_support", "0");
+                values.put("enable_support", "0");
                 break;
             case 1:
-                diff.put("enable_support", "1");
-                diff.put("support_type", "tree(auto)");
+                values.put("enable_support", "1");
+                values.put("support_type", "tree(auto)");
                 break;
             default:
-                diff.put("enable_support", "1");
-                diff.put("support_type", "normal(auto)");
+                values.put("enable_support", "1");
+                values.put("support_type", "normal(auto)");
                 break;
         }
-        diff.put("brim_type", brim == 0 ? "no_brim" : brim == 1 ? "auto_brim" : "outer_only");
-        diff.put("skirt_loops", skirt == 1 ? "1" : "0");
-        diff.put("layer_height", quality == 0 ? "0.28" : quality == 1 ? "0.20"
-                : quality == 2 ? "0.16" : "0.12");
-        diff.put("sparse_infill_density", infill == 0 ? "10%" : infill == 1 ? "25%" : "40%");
+        values.put("brim_type", brim == 0 ? "no_brim" : brim == 1 ? "auto_brim" : "outer_only");
+        values.put("skirt_loops", skirt == 1 ? "1" : "0");
+        values.put("sparse_infill_density", infill == 0 ? "10%" : infill == 1 ? "25%" : "40%");
+
+        // Any pending live edit of the same keys would win over the profile: drop it.
+        java.util.Map<String, String> live = SliceBeam.LIVE_DIFF_PRINT.values;
+        live.remove("enable_support");
+        live.remove("support_type");
+        live.remove("brim_type");
+        live.remove("skirt_loops");
+        live.remove("sparse_infill_density");
+
+        try {
+            SliceBeam.saveConfig();
+        } catch (Throwable ignored) {
+        }
     }
 
     /** Drops the current result: any change after slicing must slice again. */

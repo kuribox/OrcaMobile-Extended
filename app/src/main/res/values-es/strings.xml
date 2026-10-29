@@ -335,7 +335,7 @@
     <string name="WizardPrinterTitle">Impresora</string>
     <string name="WizardPrinterExplain">Elige la impresora que vas a usar. De su perfil salen el tamaño de la cama, la altura de capa y la dirección para enviar. Si no está en la lista, sal del asistente y créala en la pestaña Impresora.</string>
     <string name="WizardOptionsTitle">Cómo imprimir</string>
-    <string name="WizardOptionsExplain">Cuatro decisiones y listo. Lo marcado funciona en casi todo; si luego quieres afinar, está todo en la pestaña Impresión.</string>
+    <string name="WizardOptionsExplain">Cuatro ajustes que se guardan en el perfil elegido. Lo marcado funciona en casi todo; si quieres afinar más, está todo en la pestaña Impresión.</string>
     <string name="WizardSupports">Soportes para lo que queda en el aire</string>
     <string name="WizardSupportsNone">Ninguno</string>
     <string name="WizardSupportsNoneHint">Piezas macizas, con base ancha y sin voladizos</string>
@@ -343,7 +343,7 @@
     <string name="WizardSupportsTreeHint">Recomendado: figuras, brazos, detalles. Se quitan fácil</string>
     <string name="WizardSupportsNormal">Normales</string>
     <string name="WizardSupportsNormalHint">Piezas mecánicas con voladizos planos</string>
-    <string name="WizardBrim">Borde en la base (evita que se despegue)</string>
+    <string name="WizardBrim">Borde de adherencia (la pestaña que se pega a la cama)</string>
     <string name="WizardBrimNone">Sin borde</string>
     <string name="WizardBrimNoneHint">La pieza apoya bien y el filamento pega</string>
     <string name="WizardBrimAuto">Automático (recomendado)</string>
@@ -397,7 +397,7 @@
     <string name="WizardLoadingModel">Cargando el modelo…</string>
     <string name="WizardOpenFailed">No se pudo abrir el asistente</string>
     <string name="WizardBedTitle">La cama</string>
-    <string name="WizardBedExplain">Así se ven tus piezas. Arrastra una con el dedo para moverla, usa dos dedos para girarla y pellizca para acercar.</string>
+    <string name="WizardBedExplain">Así se ven tus piezas. Arrastra una con el dedo para moverla, usa dos dedos para girarla y pellizca para acercar. Para cambiar el tamaño, tócala para seleccionarla y usa el escalado de abajo.</string>
     <string name="WizardBedEmpty">No hay piezas todavía. Vuelve atrás y elige un archivo.</string>
     <string name="WizardBedPiece">Pieza %1$d</string>
     <string name="WizardBedPieceSize">%1$d × %2$d × %3$d mm</string>
@@ -427,7 +427,7 @@
     <string name="WizardFinishNoSlice">Terminar sin laminar</string>
     <string name="WizardScaleLockHint">Candado cerrado: X, Y y Z cambian juntos y la pieza no se deforma. Candado abierto: puedes cambiar una sola medida.</string>
     <string name="WizardRetrySlice">Reintentar</string>
-    <string name="WizardScaleSelectPart">Para cambiar el tamaño, toca primero una pieza en la cama: se marca en naranja.</string>
+    <string name="WizardScaleSelectPart">Escalar: toca primero una pieza en la cama para seleccionarla; después podrás cambiar su tamaño por ejes.</string>
     <string name="WizardScaleSelected">Vas a escalar la pieza %1$d</string>
     <string name="WizardScaleApply">Aplicar</string>
     <string name="WizardQualityLow">Baja · 0.28</string>
@@ -437,4 +437,10 @@
     <string name="WizardSliceTimeout">El laminado se ha quedado sin respuesta (más de 3 minutos). Prueba con menos piezas o una calidad más gruesa.</string>
     <string name="WizardSliceOutOfMemory">La app se quedó sin memoria al laminar. Reduce el número de piezas o usa una calidad más gruesa.</string>
     <string name="WizardInfillNote">Es lo de dentro de la pieza: 25 % sirve para casi todo, 40 % si tiene que aguantar peso.</string>
+    <string name="WizardProfileTitle">Calidad</string>
+    <string name="WizardProfileExplain">La calidad es un perfil de impresión completo: altura de capa, velocidades, temperaturas de proceso y demás. Elige uno; en el paso siguiente ajustas soportes, borde de adherencia, falda y relleno, y se guardan en este perfil.</string>
+    <string name="WizardProfileNoProfiles">No hay perfiles de impresión cargados. Sal del asistente y carga uno en la pestaña Impresión.</string>
+    <string name="WizardProfileNote">Los ajustes de los pasos siguientes se guardan en el perfil que elijas aquí.</string>
+    <string name="WizardOptionsNeedProfile">Elige primero la calidad: es el perfil donde se guardan estos ajustes.</string>
+    <string name="WizardOptionsInProfile">Se guardan en el perfil: %1$s</string>
 </resources>

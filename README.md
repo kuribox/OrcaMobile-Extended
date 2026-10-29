@@ -147,16 +147,18 @@ edits (`SliceBeam.LIVE_DIFF_PRINT`) and a finished slice stays in the viewer.
 | 1 · Parts | Opens the document picker with `EXTRA_ALLOW_MULTIPLE`, so every STL/3MF can be chosen at once. Each part is loaded, auto-oriented and arranged; the list allows removing one with the ✕ button. |
 | 2 · Plate | The real 3D plate is live under the panel: drag to move, two fingers to rotate, pinch to zoom. The panel adds *Arrange* (`Bed3D.arrange`) and scaling of the selected part. |
 | 3 · Printer | Lists the printer profiles and switches the active preset. |
-| 4 · Options | Supports (none / tree / normal), brim (none / automatic / outer), skirt, quality (Baja 0.28 · Media 0.20 · Buena 0.16 · Alta 0.12 mm) and infill (10 / 25 / 40 %). |
-| 5 · Filament | Lists the filament profiles; *Finish without slicing* exits here with everything applied. |
-| 6 · Slice | Slicing starts on entering the step (no button), with a spinner, a 3-minute timeout and `Throwable` handling so an out-of-memory is an error message, not a frozen panel. The result loads through `BedFragment.loadGCode`, so the preview is the View tab's own, followed by send / send and print / download / share on their own row. |
+| 4 · Quality | Lists the **print profiles**: quality is the profile itself (layer height, speeds, process temperatures), not a bare number. |
+| 5 · Options | Supports (none / tree / normal), adhesion brim (none / automatic / outer), skirt and infill (10 / 25 / 40 %), written **into the chosen print profile** and saved, so changing the quality later does not discard them. Requires a profile: without one the step only explains how to get it. |
+| 6 · Filament | Lists the filament profiles; *Finish without slicing* exits here with everything applied. |
+| 7 · Slice | Slicing starts on entering the step (no button), with a spinner, a 3-minute timeout and `Throwable` handling so an out-of-memory is an error message, not a frozen panel. The result loads through `BedFragment.loadGCode`, so the preview is the View tab's own, followed by send / send and print / download / share on their own row. |
 
-Scaling has two units (**%** of the original and **mm** of the exact bounding box), three
-`NumberPicker` carousels (X / Y / Z, wrap-around, keyboard blocked) and a padlock: closed keeps the
+Scaling applies to the **selected part** (tap one first) and has two units (**%** of the original and
+**mm**), three `NumberPicker` carousels (X / Y / Z, wrap-around, keyboard blocked) and a padlock: closed keeps the
 proportions — in mm the other axes follow the same ratio, they are not forced to the same millimetre
-value — open lets one dimension change. Nothing is applied until *Apply*, and after any change the
-rendered meshes are invalidated (`BedFragment.invalidateModel`) so the plate repaints immediately
-instead of waiting for the next gesture. Going back from the slice step drops the result, so changing
+value — open lets one dimension change. Nothing is applied until *Apply*, and the delta is computed against
+what the panel already applied — the engine caches object boxes, so re-reading them made every Apply
+multiply again or jump back to the original. After each change the meshes are invalidated
+(`BedFragment.invalidateModel`) so the plate repaints instead of waiting for the next gesture. Going back from the slice step drops the result, so changing
 anything and continuing slices again.
 
 Implementation notes worth knowing before touching it: the panel is added to `BedFragment.overlayLayout`
