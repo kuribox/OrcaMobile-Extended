@@ -163,6 +163,40 @@ Implementation notes worth knowing before touching it: the panel is added to `Be
 and only its bottom 46 % consumes touches, the rest falls through to the plate; `WizardOverlay` keeps the
 step state, and `MainActivity` routes the picker result back to it (`REQUEST_CODE_WIZARD_FILE`).
 
+## Slice from the PC (local server)
+
+The phone can host a small HTTP server so the whole slice-and-download loop happens from the computer,
+with the native engine still running on the phone.
+
+**App → Settings → Local server (slice from the PC)** starts it. The dialog shows the full URL — the
+token is part of it, so the browser keeps it in `localStorage` — and offers *copy address*, *change
+token* and *stop*. The same URL appears in the ongoing notification, which also has a stop action. The
+server only runs while the app is open: if the View tab is gone, requests answer `409 app_closed`
+instead of touching a dead model.
+
+What the page offers: drag and drop STL/3MF (several at once, with upload progress), the part list with
+its real size in mm and a ✕ to remove a piece, *Arrange* (`Bed3D.arrange`), a PNG preview of the plate,
+printer and filament presets, the five beginner options, and *Slice* with the engine's own progress.
+When it finishes: time, filament, layers, average speed, the sha256 of the file, download of `.gcode`
+and `.gcode.3mf`, and **Send** / **Send and print** through the same transport the app uses.
+
+| Method and route | What it does |
+| --- | --- |
+| `GET /api/status` | parts, presets, options and job state |
+| `GET /api/preview.png` | plate capture (`glReadPixels`), or the slice thumbnail |
+| `PUT /api/files/{name}` | raw body streamed to disk (no multipart), then loaded on the plate |
+| `DELETE /api/files/{index}` | removes that object from the model |
+| `POST /api/arrange` · `POST /api/options` | plate layout and print options (`LIVE_DIFF_PRINT`) |
+| `POST /api/slice` → `GET /api/job` | starts the job (`202`/`409 busy`) and reports progress |
+| `GET /api/gcode` · `GET /api/package` | the sliced file, or the packaged `.gcode.3mf` |
+| `POST /api/send?print=&format=` | uploads to the printer profile |
+
+Design notes: `LocalHttpServer` has no Android imports — it talks to `PlateBridge` — so the whole
+server is testable on a JVM harness (`tools/server-harness`); model work is serialised on a single
+thread; the slice watchdog fails after 3 minutes and catches `Throwable`, so an out-of-memory cannot
+leave the browser hanging; uploads require `Content-Length` and never close the session stream (closing
+it kills the socket, which is what made the first version answer with an empty reply).
+
 ## Print info panel
 
 After slicing, the **Info** entry in the bed menu lists every extrusion role with its time, filament
@@ -217,7 +251,7 @@ Two details that used to be wrong and made printers show no preview or reject th
 
 All notable changes of this fork. Dates are local (Europe/Madrid).
 
-### 0.5.1 — guided assistant (unreleased)
+### 0.5.1 — guided assistant and local server (unreleased)
 
 - **Asistente guiado**: six-step panel over the real View tab for first-time users — multi-file
   picking, plate with arrange and per-part scaling (% or mm, X/Y/Z carousels, proportion padlock),
@@ -226,6 +260,9 @@ All notable changes of this fork. Dates are local (Europe/Madrid).
   unsaved settings and the sliced result.
 - Slicing from the assistant fails after 3 minutes instead of spinning forever, and reports
   `OutOfMemoryError` instead of hanging.
+- **Local server**: the phone serves a web page on `:8080` (token, foreground service) to upload
+  parts, arrange, set options, slice, download `.gcode`/`.gcode.3mf` and send to the printer from the
+  PC browser, with the native engine doing the work.
 
 ### 0.5.0 — 2026-10-24 (first fork release)
 

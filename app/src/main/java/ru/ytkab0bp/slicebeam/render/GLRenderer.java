@@ -221,6 +221,37 @@ public class GLRenderer implements GLSurfaceView.Renderer {
         return projectionMatrix;
     }
 
+    /**
+     * Reads the current framebuffer into a bitmap. Must run on the GL thread (uses glReadPixels).
+     * Returns null when there is no surface yet.
+     */
+    public android.graphics.Bitmap captureFrame() {
+        int width = viewportWidth;
+        int height = viewportHeight;
+        if (width <= 0 || height <= 0) return null;
+        java.nio.IntBuffer pixels = java.nio.ByteBuffer
+                .allocateDirect(width * height * 4)
+                .order(java.nio.ByteOrder.nativeOrder())
+                .asIntBuffer();
+        android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(
+                width, height, android.graphics.Bitmap.Config.ARGB_8888);
+        try {
+            android.opengl.GLES30.glReadPixels(0, 0, width, height,
+                    android.opengl.GLES30.GL_RGBA, android.opengl.GLES30.GL_UNSIGNED_BYTE, pixels);
+            bitmap.copyPixelsFromBuffer(pixels);
+        } catch (Throwable t) {
+            return null;
+        }
+        // GL origin is bottom-left, bitmaps are top-left.
+        android.graphics.Matrix flip = new android.graphics.Matrix();
+        flip.preScale(1f, -1f);
+        try {
+            return android.graphics.Bitmap.createBitmap(bitmap, 0, 0, width, height, flip, false);
+        } catch (Throwable t) {
+            return bitmap;
+        }
+    }
+
     public int getViewportWidth() {
         return viewportWidth;
     }

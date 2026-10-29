@@ -437,4 +437,20 @@
     <string name="WizardSliceTimeout">El laminado se ha quedado sin respuesta (más de 3 minutos). Prueba con menos piezas o una calidad más gruesa.</string>
     <string name="WizardSliceOutOfMemory">La app se quedó sin memoria al laminar. Reduce el número de piezas o usa una calidad más gruesa.</string>
     <string name="WizardInfillNote">Es lo de dentro de la pieza: 25 % sirve para casi todo, 40 % si tiene que aguantar peso.</string>
+    <string name="LocalServerTitle">Servidor local</string>
+    <string name="LocalServerChannel">Servidor local del laminador</string>
+    <string name="LocalServerStarting">Arrancando…</string>
+    <string name="LocalServerStop">Detener</string>
+    <string name="LocalServerNoWifi">Sin WiFi: conecta el móvil a la misma red que la PC</string>
+    <string name="LocalServerNeedsApp">Abre la pestaña Vista antes de arrancar el servidor.</string>
+    <string name="LocalServerFailed">No se pudo arrancar: %1$s</string>
+    <string name="SettingsLocalServer">Servidor local (laminar desde la PC)</string>
+    <string name="LocalServerOn">Activo</string>
+    <string name="LocalServerOff">Apagado</string>
+    <string name="LocalServerStart">Arrancar servidor</string>
+    <string name="LocalServerStopAction">Detener servidor</string>
+    <string name="LocalServerCopyUrl">Copiar dirección</string>
+    <string name="LocalServerRotateToken">Cambiar token</string>
+    <string name="LocalServerCopied">Dirección copiada</string>
+    <string name="LocalServerHelp">Abre esta dirección en el navegador de la PC, en la misma red WiFi. El token va incluido en la dirección.</string>
 </resources>

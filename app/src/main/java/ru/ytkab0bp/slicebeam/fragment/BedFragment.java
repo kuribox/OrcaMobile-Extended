@@ -351,6 +351,42 @@ public class BedFragment extends Fragment {
         }
     }
 
+    /** PNG of what the plate looks like right now, scaled down for the local server UI. */
+    public byte[] capturePlatePng(int maxWidth) {
+        try {
+            final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+            final android.graphics.Bitmap[] holder = new android.graphics.Bitmap[1];
+            glView.queueEvent(() -> {
+                try {
+                    holder[0] = glView.getRenderer().captureFrame();
+                } catch (Throwable ignored) {
+                } finally {
+                    latch.countDown();
+                }
+            });
+            glView.requestRender();
+            if (!latch.await(3, java.util.concurrent.TimeUnit.SECONDS) || holder[0] == null) {
+                return null;
+            }
+            android.graphics.Bitmap source = holder[0];
+            int width = source.getWidth();
+            int height = source.getHeight();
+            if (maxWidth > 0 && width > maxWidth) {
+                float ratio = (float) maxWidth / width;
+                android.graphics.Bitmap scaled = android.graphics.Bitmap.createScaledBitmap(
+                        source, maxWidth, Math.max(1, Math.round(height * ratio)), true);
+                source.recycle();
+                source = scaled;
+            }
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            source.compress(android.graphics.Bitmap.CompressFormat.PNG, 90, out);
+            source.recycle();
+            return out.toByteArray();
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     /** Re-uploads every object mesh: transforms are otherwise only visible after a gesture. */
     public void invalidateModel() {
         if (glView == null) return;
@@ -514,6 +550,7 @@ public class BedFragment extends Fragment {
 
     @Override
     public void onDestroy() {
+        ru.ytkab0bp.slicebeam.server.LocalServerService.detach(this);
         super.onDestroy();
 
         SliceBeam.EVENT_BUS.unregisterListener(this);
@@ -537,6 +574,7 @@ public class BedFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        ru.ytkab0bp.slicebeam.server.LocalServerService.attach(this);
         glView.onResume();
         ConfigObject cfg = SliceBeam.CONFIG.findPrinter(SliceBeam.CONFIG.presets.get("printer"));
         boolean enable = cfg != null && cfg.get("host_type") != null && !TextUtils.isEmpty(cfg.get("print_host")) && panelWebView != null;

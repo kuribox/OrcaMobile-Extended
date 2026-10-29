@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OrcaMobile · laminar desde la PC</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <h1>OrcaMobile</h1>
+    <span id="conn" class="pill off">sin conexión</span>
+    <span id="plate-ip" class="muted"></span>
+</header>
+
+<main>
+    <section class="card">
+        <h2>1 · Piezas</h2>
+        <div id="drop" class="drop">
+            <strong>Arrastra aquí tus STL / 3MF</strong>
+            <span class="muted">o</span>
+            <label class="button">
+                Elegir archivos
+                <input id="picker" type="file" multiple accept=".stl,.3mf,.obj,.step,.stp" hidden>
+            </label>
+        </div>
+        <div id="upload-bar" class="bar hidden"><div id="upload-fill"></div><span id="upload-text"></span></div>
+        <ul id="parts" class="parts"></ul>
+        <div class="row">
+            <button id="arrange" class="button ghost">Organizar</button>
+            <span id="parts-count" class="muted"></span>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>2 · Cama</h2>
+        <div class="preview-wrap">
+            <img id="preview" alt="Vista de la cama">
+            <span id="preview-empty" class="muted">Sin vista previa todavía</span>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>3 · Configuración</h2>
+        <div class="grid">
+            <label>Impresora<select id="printer"></select></label>
+            <label>Filamento<select id="filament"></select></label>
+            <label>Soportes
+                <select id="supports">
+                    <option value="none">Ninguno</option>
+                    <option value="tree" selected>Árbol</option>
+                    <option value="normal">Normales</option>
+                </select>
+            </label>
+            <label>Borde
+                <select id="brim">
+                    <option value="none">Ninguno</option>
+                    <option value="auto" selected>Automático</option>
+                    <option value="outer">Exterior</option>
+                </select>
+            </label>
+            <label>Falda
+                <select id="skirt">
+                    <option value="yes" selected>Sí</option>
+                    <option value="no">No</option>
+                </select>
+            </label>
+            <label>Calidad
+                <select id="quality">
+                    <option value="0.28">Baja · 0.28 mm</option>
+                    <option value="0.20" selected>Media · 0.20 mm</option>
+                    <option value="0.16">Buena · 0.16 mm</option>
+                    <option value="0.12">Alta · 0.12 mm</option>
+                </select>
+            </label>
+            <label>Relleno
+                <select id="infill">
+                    <option value="10%">10 %</option>
+                    <option value="25%" selected>25 %</option>
+                    <option value="40%">40 %</option>
+                </select>
+            </label>
+        </div>
+        <div class="row">
+            <button id="apply" class="button ghost">Guardar configuración</button>
+            <span id="apply-state" class="muted"></span>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>4 · Laminar</h2>
+        <div class="row">
+            <button id="slice" class="button">Laminar</button>
+            <span id="job-state" class="muted"></span>
+        </div>
+        <div id="job-bar" class="bar hidden"><div id="job-fill"></div></div>
+        <div id="result" class="result hidden">
+            <div class="stats">
+                <div><span>Tiempo</span><strong id="stat-time">—</strong></div>
+                <div><span>Filamento</span><strong id="stat-weight">—</strong></div>
+                <div><span>Capas</span><strong id="stat-layers">—</strong></div>
+                <div><span>Velocidad media</span><strong id="stat-speed">—</strong></div>
+            </div>
+            <div class="hash muted" id="stat-hash"></div>
+            <div class="row wrap">
+                <a id="dl-gcode" class="button ghost" href="#">Descargar G-code</a>
+                <a id="dl-package" class="button ghost" href="#">Descargar 3MF</a>
+                <button id="send" class="button ghost">Enviar</button>
+                <button id="send-print" class="button">Enviar e imprimir</button>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script src="app.js"></script>
+</body>
+</html>

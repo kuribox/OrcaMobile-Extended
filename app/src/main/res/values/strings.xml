@@ -437,4 +437,20 @@
     <string name="WizardSliceTimeout">Slicing stopped responding (over 3 minutes). Try fewer parts or a coarser quality.</string>
     <string name="WizardSliceOutOfMemory">The app ran out of memory while slicing. Reduce the number of parts or use a coarser quality.</string>
     <string name="WizardInfillNote">That is the inside of the part: 25 % covers almost everything, 40 % when it must hold weight.</string>
+    <string name="LocalServerTitle">Local server</string>
+    <string name="LocalServerChannel">Slicer local server</string>
+    <string name="LocalServerStarting">Starting…</string>
+    <string name="LocalServerStop">Stop</string>
+    <string name="LocalServerNoWifi">No WiFi: connect the phone to the same network as the PC</string>
+    <string name="LocalServerNeedsApp">Open the View tab before starting the server.</string>
+    <string name="LocalServerFailed">Could not start: %1$s</string>
+    <string name="SettingsLocalServer">Local server (slice from the PC)</string>
+    <string name="LocalServerOn">Running</string>
+    <string name="LocalServerOff">Off</string>
+    <string name="LocalServerStart">Start server</string>
+    <string name="LocalServerStopAction">Stop server</string>
+    <string name="LocalServerCopyUrl">Copy address</string>
+    <string name="LocalServerRotateToken">Change token</string>
+    <string name="LocalServerCopied">Address copied</string>
+    <string name="LocalServerHelp">Open this address in the PC browser, on the same WiFi network. The token is part of the address.</string>
 </resources>

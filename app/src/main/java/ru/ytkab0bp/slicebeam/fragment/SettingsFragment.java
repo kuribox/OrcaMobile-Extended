@@ -54,6 +54,50 @@ public class SettingsFragment extends ProfileListFragment {
         return name != null ? name : tag;
     }
 
+    private void showLocalServerDialog() {
+        Context ctx = getContext();
+        if (ctx == null) return;
+        boolean running = ru.ytkab0bp.slicebeam.server.LocalServerService.isRunning();
+        String url = ru.ytkab0bp.slicebeam.server.LocalServerService.url(ctx);
+        String message = ctx.getString(R.string.LocalServerHelp)
+                + "\n\n" + (running ? url : ctx.getString(R.string.LocalServerOff));
+
+        String[] actions = {
+                running ? ctx.getString(R.string.LocalServerStopAction) : ctx.getString(R.string.LocalServerStart),
+                ctx.getString(R.string.LocalServerCopyUrl),
+                ctx.getString(R.string.LocalServerRotateToken)
+        };
+        new BeamAlertDialogBuilder(ctx)
+                .setTitle(R.string.LocalServerTitle)
+                .setMessage(message)
+                .setItems(actions, (dialog, which) -> {
+                    if (which == 0) {
+                        if (running) {
+                            ru.ytkab0bp.slicebeam.server.LocalServerService.stop(ctx);
+                        } else {
+                            ru.ytkab0bp.slicebeam.server.LocalServerService.start(ctx);
+                        }
+                    } else if (which == 1) {
+                        android.content.ClipboardManager clipboard =
+                                (android.content.ClipboardManager) ctx.getSystemService(Context.CLIPBOARD_SERVICE);
+                        if (clipboard != null) {
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("OrcaMobile", url));
+                            android.widget.Toast.makeText(ctx, R.string.LocalServerCopied,
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        ru.ytkab0bp.slicebeam.server.LocalServerService.rotateToken(ctx);
+                        if (ru.ytkab0bp.slicebeam.server.LocalServerService.isRunning()) {
+                            ru.ytkab0bp.slicebeam.server.LocalServerService.stop(ctx);
+                            ru.ytkab0bp.slicebeam.server.LocalServerService.start(ctx);
+                        }
+                        showLocalServerDialog();
+                    }
+                })
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
+
     @Override
     protected List<OptionElement> getConfigItems() {
         return Arrays.asList(
@@ -61,6 +105,13 @@ public class SettingsFragment extends ProfileListFragment {
                     Activity act = (Activity) getContext();
                     act.startActivity(new Intent(act, SetupActivity.class).putExtra(SetupActivity.EXTRA_CLOUD_PROFILE, true));
                 }) : null,
+                new OptionElement(new PreferenceItem()
+                        .setIcon(R.drawable.printer_outline_28)
+                        .setTitle(getContext().getString(R.string.SettingsLocalServer))
+                        .setValueProvider(() -> getContext().getString(
+                                ru.ytkab0bp.slicebeam.server.LocalServerService.isRunning()
+                                        ? R.string.LocalServerOn : R.string.LocalServerOff))
+                        .setOnClickListener(v -> showLocalServerDialog())),
                 new OptionElement(R.drawable.paint_roller_outline_28, getContext().getString(R.string.SettingsInterface)),
                 new OptionElement(new PreferenceItem().setTitle(getContext().getString(R.string.SettingsInterfaceTheme)).setValueProvider(() -> getContext().getString(Prefs.getThemeMode().title)).setOnClickListener(v -> {
                     String[] items = new String[Prefs.ThemeMode.values().length];

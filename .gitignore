@@ -55,3 +55,6 @@ compile_mocks.txt
 /benchy.gcode
 /benchy_new.gcode
 app/screen.png
+
+# JVM harness artifacts
+tools/server-harness/build/
