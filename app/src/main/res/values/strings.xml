@@ -427,4 +427,13 @@
     <string name="WizardFinishNoSlice">Finish without slicing</string>
     <string name="WizardScaleLockHint">The ✓ mark keeps proportions (X = Y = Z). Clear it to change a single dimension.</string>
     <string name="WizardRetrySlice">Retry slicing</string>
+    <string name="WizardScaleSelectPart">Tap a part on the plate to select it before scaling.</string>
+    <string name="WizardScaleSelected">Selected part: %1$d</string>
+    <string name="WizardScaleApply">Apply scale</string>
+    <string name="WizardQualityLow">Low · 0.28</string>
+    <string name="WizardQualityMedium">Medium · 0.20</string>
+    <string name="WizardQualityGood">Good · 0.16</string>
+    <string name="WizardQualityHigh">High · 0.12</string>
+    <string name="WizardSliceTimeout">Slicing stopped responding (over 3 minutes). Try fewer parts or a coarser quality.</string>
+    <string name="WizardSliceOutOfMemory">The app ran out of memory while slicing. Reduce the number of parts or use a coarser quality.</string>
 </resources>

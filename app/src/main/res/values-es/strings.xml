@@ -427,4 +427,13 @@
     <string name="WizardFinishNoSlice">Terminar sin laminar</string>
     <string name="WizardScaleLockHint">La marca ✓ mantiene las proporciones (X = Y = Z). Desmárcala para deformar una sola medida.</string>
     <string name="WizardRetrySlice">Reintentar laminado</string>
+    <string name="WizardScaleSelectPart">Toca una pieza en la cama para seleccionarla y poder escalarla.</string>
+    <string name="WizardScaleSelected">Pieza seleccionada: %1$d</string>
+    <string name="WizardScaleApply">Aplicar escala</string>
+    <string name="WizardQualityLow">Baja · 0.28</string>
+    <string name="WizardQualityMedium">Media · 0.20</string>
+    <string name="WizardQualityGood">Buena · 0.16</string>
+    <string name="WizardQualityHigh">Alta · 0.12</string>
+    <string name="WizardSliceTimeout">El laminado se ha quedado sin respuesta (más de 3 minutos). Prueba con menos piezas o una calidad más gruesa.</string>
+    <string name="WizardSliceOutOfMemory">La app se quedó sin memoria al laminar. Reduce el número de piezas o usa una calidad más gruesa.</string>
 </resources>

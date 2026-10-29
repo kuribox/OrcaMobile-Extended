@@ -64,6 +64,8 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
 
     private static final Pattern TIME_COMMENT = Pattern.compile("(?i)^;\\s*estimated printing time[^=]*=\\s*(.*)$");
     private static final Pattern WEIGHT_COMMENT = Pattern.compile("(?i)^;\\s*total filament weight \\[g\\]\\s*=\\s*(.*)$");
+    private static final long SLICE_TIMEOUT_MS = 3 * 60 * 1000L;
+
     private static final Pattern DURATION = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*([dhms])", Pattern.CASE_INSENSITIVE);
 
     private final BedFragment bed;
@@ -89,14 +91,16 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private float scaleX = 100f;
     private float scaleY = 100f;
     private float scaleZ = 100f;
-    private float appliedX = 100f;
-    private float appliedY = 100f;
-    private float appliedZ = 100f;
+    private float pendingX = 100f;
+    private float pendingY = 100f;
+    private float pendingZ = 100f;
+    private boolean scaleInMm;
     private boolean scaleLocked = true;
     private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
 
     private boolean slicing;
     private boolean sliceFailed;
+    private volatile boolean sliceAbandoned;
     private File gcode;
     private byte[] previewPng;
     private int seconds;
@@ -342,8 +346,9 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         if (loadedNames.isEmpty()) {
             addNote(ctx.getString(R.string.WizardFilesEmpty));
         } else {
-            for (String name : loadedNames) {
-                addRow(R.drawable.picture_stack_outline_28, name, null, null, false);
+            for (int i = 0; i < loadedNames.size(); i++) {
+                final int index = i;
+                addRemovableRow(R.drawable.picture_stack_outline_28, loadedNames.get(i), () -> removePart(index));
             }
         }
     }
@@ -361,43 +366,45 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         tools.setOrientation(LinearLayout.HORIZONTAL);
         tools.addView(iconButton(R.drawable.grid_layout_outline_28,
                 ctx.getString(R.string.WizardBedArrange), v -> arrange()), weighted(1f));
+        tools.addView(unitChip("%", !scaleInMm), weighted(0.8f));
+        tools.addView(unitChip("mm", scaleInMm), weighted(0.8f));
+        content.addView(tools, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        int selected = selectedObject();
+        if (selected < 0) {
+            addNote(ctx.getString(R.string.WizardScaleSelectPart));
+            addNote(ctx.getString(R.string.WizardBedGestureHint));
+            return;
+        }
+        syncScaleValues(selected);
+        addRow(R.drawable.picture_stack_outline_28,
+                ctx.getString(R.string.WizardScaleSelected, selected + 1), null, null, false);
+
+        float step = scaleInMm ? 1f : 5f;
+        content.addView(stepperRow("X", selected, 0), new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        content.addView(stepperRow("Y", selected, 1), new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        content.addView(stepperRow("Z", selected, 2), new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout confirm = new LinearLayout(ctx);
+        confirm.setOrientation(LinearLayout.HORIZONTAL);
         ImageView lock = new ImageView(ctx);
-        lock.setImageResource(R.drawable.done_outline_28);
+        lock.setImageResource(scaleLocked ? R.drawable.ic_padlock_locked : R.drawable.ic_padlock_open);
         lock.setColorFilter(ThemesRepo.getColor(scaleLocked
                 ? android.R.attr.colorAccent : android.R.attr.textColorSecondary));
-        lock.setPadding(ViewUtils.dp(10), ViewUtils.dp(16), ViewUtils.dp(10), ViewUtils.dp(16));
+        lock.setPadding(ViewUtils.dp(12), ViewUtils.dp(14), ViewUtils.dp(12), ViewUtils.dp(14));
         lock.setOnClickListener(v -> {
             scaleLocked = !scaleLocked;
             render();
         });
-        tools.addView(lock, weighted(0.6f));
-        tools.addView(scaleField("X", scaleX, value -> {
-            scaleX = value;
-            if (scaleLocked) {
-                scaleY = value;
-                scaleZ = value;
-            }
-            applyScale();
-        }), weighted(1f));
-        tools.addView(scaleField("Y", scaleY, value -> {
-            scaleY = value;
-            if (scaleLocked) {
-                scaleX = value;
-                scaleZ = value;
-            }
-            applyScale();
-        }), weighted(1f));
-        tools.addView(scaleField("Z", scaleZ, value -> {
-            scaleZ = value;
-            if (scaleLocked) {
-                scaleX = value;
-                scaleY = value;
-            }
-            applyScale();
-        }), weighted(1f));
-        content.addView(tools, new LinearLayout.LayoutParams(
+        confirm.addView(lock, new LinearLayout.LayoutParams(ViewUtils.dp(46), ViewUtils.dp(54)));
+        confirm.addView(iconButton(R.drawable.done_outline_28,
+                ctx.getString(R.string.WizardScaleApply), v -> commitScale()), weighted(1.6f));
+        content.addView(confirm, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        addNote(ctx.getString(R.string.WizardScaleLockHint));
         addNote(ctx.getString(R.string.WizardBedGestureHint));
     }
 
@@ -439,7 +446,11 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                 ctx.getString(R.string.WizardSkirtNoShort)}, skirt == 1 ? 0 : 1,
                 i -> skirt = i == 0 ? 1 : 0);
 
-        addChips(R.string.WizardQuality, new String[]{"0.28", "0.20", "0.16", "0.12"}, quality, i -> quality = i);
+        addChips(R.string.WizardQuality, new String[]{
+                ctx.getString(R.string.WizardQualityLow),
+                ctx.getString(R.string.WizardQualityMedium),
+                ctx.getString(R.string.WizardQualityGood),
+                ctx.getString(R.string.WizardQualityHigh)}, quality, i -> quality = i);
         addNote(ctx.getString(R.string.WizardQualityNote));
 
         addChips(R.string.WizardInfill, new String[]{"10 %", "25 %", "40 %"}, infill, i -> infill = i);
@@ -468,6 +479,15 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         titleView.setText(R.string.WizardSliceTitle);
         explainView.setText(slicing ? ctx.getString(R.string.WizardSlicing) : ctx.getString(R.string.WizardSliceExplain));
 
+        if (gcode == null && slicing) {
+            android.widget.ProgressBar spinner = new android.widget.ProgressBar(ctx);
+            spinner.setIndeterminate(true);
+            LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(
+                    ViewUtils.dp(44), ViewUtils.dp(44));
+            spinnerParams.gravity = Gravity.CENTER_HORIZONTAL;
+            spinnerParams.topMargin = ViewUtils.dp(24);
+            content.addView(spinner, spinnerParams);
+        }
         if (gcode == null) {
             if (sliceFailed) {
                 addIconButton(R.drawable.refresh_outline_28,
@@ -508,7 +528,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         if (step > STEP_FILES) {
             footer.addView(iconButton(R.drawable.arrow_left_outline_28,
                     ctx.getString(R.string.WizardBack), v -> {
-                        if (step == STEP_SLICE) bed.exitSlicedView();
+                        if (step == STEP_SLICE) invalidateSlice();
                         step--;
                         render();
                     }), weighted(1f));
@@ -565,71 +585,145 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         bed.invalidateModel();
     }
 
-    /** Applies the fields as a delta over what is already applied, per axis. */
-    private void applyScale() {
-        Model model = bed.getCurrentModel();
-        if (model == null) return;
-        float factorX = appliedX == 0 ? 1f : scaleX / appliedX;
-        float factorY = appliedY == 0 ? 1f : scaleY / appliedY;
-        float factorZ = appliedZ == 0 ? 1f : scaleZ / appliedZ;
-        appliedX = scaleX;
-        appliedY = scaleY;
-        appliedZ = scaleZ;
+    private int selectedObject() {
         try {
-            for (int i = 0; i < model.getObjectsCount(); i++) {
-                model.scale(i, factorX, factorY, factorZ);
-                model.ensureOnBed(i);
-            }
-            model.resetBoundingBox();
-        } catch (Exception ignored) {
+            return bed.getGlView().getRenderer().getSelectedObject();
+        } catch (Exception e) {
+            return -1;
         }
-        refreshBed();
     }
 
-    /** Small numeric field (% of original) for one axis. */
-    private View scaleField(String axis, float value, FloatConsumer onChange) {
-        LinearLayout column = new LinearLayout(ctx);
-        column.setOrientation(LinearLayout.VERTICAL);
-        column.setGravity(Gravity.CENTER);
+    /** Current value of the selected part on one axis, in the active unit. */
+    private float currentValue(int index, int axis) {
+        Model model = bed.getCurrentModel();
+        if (model == null || index < 0) return 100f;
+        try {
+            if (scaleInMm) {
+                ru.ytkab0bp.slicebeam.utils.Vec3d min = new ru.ytkab0bp.slicebeam.utils.Vec3d();
+                ru.ytkab0bp.slicebeam.utils.Vec3d max = new ru.ytkab0bp.slicebeam.utils.Vec3d();
+                model.getBoundingBoxExact(index, min, max);
+                return (float) (axis == 0 ? max.x - min.x : axis == 1 ? max.y - min.y : max.z - min.z);
+            }
+            ru.ytkab0bp.slicebeam.utils.Vec3d scale = new ru.ytkab0bp.slicebeam.utils.Vec3d();
+            model.getScale(index, scale);
+            return (float) ((axis == 0 ? scale.x : axis == 1 ? scale.y : scale.z) * 100);
+        } catch (Exception e) {
+            return 100f;
+        }
+    }
+
+    /** Keeps the pending numbers in sync with the part whenever the step is shown. */
+    private void syncScaleValues(int index) {
+        pendingX = currentValue(index, 0);
+        pendingY = currentValue(index, 1);
+        pendingZ = currentValue(index, 2);
+        scaleX = pendingX;
+        scaleY = pendingY;
+        scaleZ = pendingZ;
+    }
+
+    /** [−] value [+] — a numeric selector with no upper bound; nothing is applied until OK. */
+    private View stepperRow(String axis, int index, int which) {
+        LinearLayout row = new LinearLayout(ctx);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
 
         TextView label = new TextView(ctx);
         label.setText(axis);
-        label.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10);
+        label.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
         label.setGravity(Gravity.CENTER);
         label.setTextColor(ThemesRepo.getColor(android.R.attr.textColorSecondary));
-        column.addView(label);
+        row.addView(label, new LinearLayout.LayoutParams(ViewUtils.dp(22), ViewUtils.dp(48)));
 
-        android.widget.EditText field = new android.widget.EditText(ctx);
-        field.setText(String.valueOf(Math.round(value)));
-        field.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
-        field.setGravity(Gravity.CENTER);
-        field.setSingleLine(true);
-        field.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        field.setTextColor(ThemesRepo.getColor(android.R.attr.textColorPrimary));
-        field.addTextChangedListener(new android.text.TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
+        float step = scaleInMm ? 1f : 5f;
+        row.addView(stepButton("−", v -> stepBy(which, -step)), weighted(0.9f));
 
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
+        TextView value = new TextView(ctx);
+        value.setText(formatValue(pending(which)) + (scaleInMm ? " mm" : " %"));
+        value.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        value.setGravity(Gravity.CENTER);
+        value.setTextColor(ThemesRepo.getColor(android.R.attr.textColorPrimary));
+        row.addView(value, weighted(1.6f));
 
-            @Override
-            public void afterTextChanged(android.text.Editable text) {
-                handler.removeCallbacksAndMessages(null);
-                handler.postDelayed(() -> {
-                    try {
-                        float parsed = Float.parseFloat(text.toString().replace(',', '.'));
-                        if (parsed > 0) onChange.accept(parsed);
-                    } catch (Exception ignored) {
-                    }
-                }, 250);
-            }
+        row.addView(stepButton("+", v -> stepBy(which, step)), weighted(0.9f));
+        return row;
+    }
+
+    private View stepButton(String text, View.OnClickListener listener) {
+        TextView view = new TextView(ctx);
+        view.setText(text);
+        view.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
+        view.setGravity(Gravity.CENTER);
+        view.setTextColor(ThemesRepo.getColor(android.R.attr.textColorPrimary));
+        view.setBackground(ViewUtils.createRipple(ThemesRepo.getColor(android.R.attr.colorControlHighlight),
+                ThemesRepo.getColor(android.R.attr.colorControlHighlight), ViewUtils.dp(6)));
+        view.setOnClickListener(listener);
+        view.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewUtils.dp(48)));
+        return view;
+    }
+
+    private float pending(int which) {
+        return which == 0 ? pendingX : which == 1 ? pendingY : pendingZ;
+    }
+
+    private void stepBy(int which, float delta) {
+        float value = Math.max(scaleInMm ? 1f : 5f, pending(which) + delta);
+        if (scaleLocked) {
+            pendingX = value;
+            pendingY = value;
+            pendingZ = value;
+        } else {
+            if (which == 0) pendingX = value;
+            if (which == 1) pendingY = value;
+            if (which == 2) pendingZ = value;
+        }
+        render();
+    }
+
+    private String formatValue(float value) {
+        return scaleInMm ? String.format(java.util.Locale.getDefault(), "%.1f", value)
+                : String.valueOf(Math.round(value));
+    }
+
+    /** Applies the pending numbers to the selected part, converting them to a scale delta. */
+    private void commitScale() {
+        int index = selectedObject();
+        Model model = bed.getCurrentModel();
+        if (index < 0 || model == null) return;
+        float baseX = currentValue(index, 0);
+        float baseY = currentValue(index, 1);
+        float baseZ = currentValue(index, 2);
+        float rx = baseX <= 0 ? 1f : pendingX / baseX;
+        float ry = baseY <= 0 ? 1f : pendingY / baseY;
+        float rz = baseZ <= 0 ? 1f : pendingZ / baseZ;
+        try {
+            model.scale(index, rx, ry, rz);
+            model.ensureOnBed(index);
+            model.resetBoundingBox();
+        } catch (Throwable ignored) {
+        }
+        bed.invalidateModel();
+        render();
+    }
+
+    private View unitChip(String text, boolean active) {
+        TextView chip = new TextView(ctx);
+        chip.setText(text);
+        chip.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+        chip.setGravity(Gravity.CENTER);
+        chip.setBackground(ViewUtils.createRipple(
+                ThemesRepo.getColor(active ? android.R.attr.colorAccent : android.R.attr.colorControlHighlight),
+                ThemesRepo.getColor(active ? android.R.attr.colorAccent : android.R.attr.colorControlHighlight),
+                ViewUtils.dp(6)));
+        chip.setTextColor(ThemesRepo.getColor(active
+                ? R.attr.textColorOnAccent : android.R.attr.textColorPrimary));
+        chip.setOnClickListener(v -> {
+            scaleInMm = text.equals("mm");
+            scaleLocked = scaleLocked;
+            render();
         });
-        column.addView(field, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewUtils.dp(34)));
-        return column;
+        chip.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewUtils.dp(54)));
+        return chip;
     }
 
     private void applyAnswers() {
@@ -654,6 +748,18 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         diff.put("sparse_infill_density", infill == 0 ? "10%" : infill == 1 ? "25%" : "40%");
     }
 
+    /** Drops the current result: any change after slicing must slice again. */
+    private void invalidateSlice() {
+        if (gcode != null) bed.exitSlicedView();
+        gcode = null;
+        previewPng = null;
+        sliceFailed = false;
+        seconds = 0;
+        grams = 0;
+        layers = 0;
+        averageSpeed = 0;
+    }
+
     private void startSlice() {
         final Model model = bed.getCurrentModel();
         if (model == null || model.getObjectsCount() == 0) {
@@ -664,34 +770,53 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         slicing = true;
         explainView.setText(R.string.WizardSlicing);
 
+        sliceAbandoned = false;
+        // A print that never comes back must not leave the panel spinning forever.
+        handler.postDelayed(() -> {
+            if (slicing && gcode == null) {
+                sliceAbandoned = true;
+                slicing = false;
+                sliceFailed = true;
+                explainView.setText(R.string.WizardSliceTimeout);
+                render();
+            }
+        }, SLICE_TIMEOUT_MS);
+
         new Thread(() -> {
             String error = null;
+            File out = null;
             try {
                 SliceBeam.ensureCompatibleSelection();
                 SliceBeam.genCurrentConfig();
                 File cfg = SliceBeam.getCurrentConfigFile();
-                File out = BedFragment.getTempGCodePath();
-                model.slice(cfg.getAbsolutePath(), out.getAbsolutePath(), (progress, text) -> { });
-                readStats(out);
-                previewPng = GCodeThumbnail.render(out, 320);
-                gcode = out;
-                // Same viewer and same information panel the View tab uses.
-                ViewUtils.postOnMainThread(() -> {
-                    bed.loadGCode(out);
-                    ViewUtils.postOnMainThread(() ->
-                            SliceMenu.showInfoPanel(bed, actions), 700);
-                });
-            } catch (Exception e) {
-                error = String.valueOf(e.getMessage());
+                out = BedFragment.getTempGCodePath();
+                final File target = out;
+                model.slice(cfg.getAbsolutePath(), target.getAbsolutePath(), (progress, text) -> { });
+                if (!sliceAbandoned) {
+                    readStats(target);
+                    previewPng = GCodeThumbnail.render(target, 320);
+                }
+            } catch (Throwable e) {
+                error = e instanceof OutOfMemoryError
+                        ? ctx.getString(R.string.WizardSliceOutOfMemory)
+                        : String.valueOf(e.getMessage());
             }
             final String failure = error;
+            final File produced = out;
             ViewUtils.postOnMainThread(() -> {
+                handler.removeCallbacksAndMessages(null);
+                if (sliceAbandoned) return;
                 slicing = false;
                 if (failure != null) {
                     sliceFailed = true;
                     explainView.setText(ctx.getString(R.string.WizardSliceFailed, failure));
+                    render();
+                    return;
                 }
+                gcode = produced;
                 render();
+                // Same 3D viewer the View tab shows; no information panel on top.
+                bed.loadGCode(produced);
             });
         }, "wizard-slice").start();
     }
@@ -912,6 +1037,60 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         content.addView(row, rowParams);
     }
 
+    /** Row with a delete button; used by the file list. */
+    private void addRemovableRow(int iconRes, String heading, Runnable onRemove) {
+        LinearLayout row = new LinearLayout(ctx);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        ImageView icon = new ImageView(ctx);
+        icon.setImageResource(iconRes);
+        icon.setColorFilter(ThemesRepo.getColor(android.R.attr.textColorSecondary));
+        row.addView(icon, new LinearLayout.LayoutParams(ViewUtils.dp(20), ViewUtils.dp(20)));
+
+        TextView text = new TextView(ctx);
+        text.setText(heading);
+        text.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        text.setTextColor(ThemesRepo.getColor(android.R.attr.textColorPrimary));
+        text.setSingleLine(true);
+        text.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        params.leftMargin = ViewUtils.dp(10);
+        row.addView(text, params);
+
+        TextView remove = new TextView(ctx);
+        remove.setText("✕");
+        remove.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        remove.setGravity(Gravity.CENTER);
+        remove.setTextColor(ThemesRepo.getColor(android.R.attr.textColorSecondary));
+        remove.setPadding(ViewUtils.dp(10), ViewUtils.dp(6), ViewUtils.dp(10), ViewUtils.dp(6));
+        remove.setOnClickListener(v -> onRemove.run());
+        row.addView(remove, new LinearLayout.LayoutParams(ViewUtils.dp(36), ViewUtils.dp(40)));
+
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowParams.bottomMargin = ViewUtils.dp(4);
+        content.addView(row, rowParams);
+    }
+
+    /** Removes one part from the plate (the object the list row stands for). */
+    private void removePart(int index) {
+        Model model = bed.getCurrentModel();
+        if (model == null || index < 0 || index >= model.getObjectsCount()) {
+            render();
+            return;
+        }
+        try {
+            model.deleteObject(index);
+            model.resetBoundingBox();
+        } catch (Throwable ignored) {
+        }
+        if (index < loadedNames.size()) loadedNames.remove(index);
+        bed.invalidateModel();
+        render();
+    }
+
     private void addChips(int titleRes, String[] options, int selected, IntConsumer onPick) {
         TextView title = new TextView(ctx);
         title.setText(titleRes);
@@ -965,10 +1144,6 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private void toast(String message) {
         ViewUtils.postOnMainThread(() -> android.widget.Toast.makeText(
                 ctx, message, android.widget.Toast.LENGTH_SHORT).show());
-    }
-
-    private interface FloatConsumer {
-        void accept(float value);
     }
 
     private interface IntConsumer {

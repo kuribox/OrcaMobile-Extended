@@ -342,7 +342,6 @@ public class BedFragment extends Fragment {
         wizardOverlay = new ru.ytkab0bp.slicebeam.view.WizardOverlay(this);
         overlayLayout.addView(wizardOverlay, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        wizardOverlay.startPicker();
     }
 
     public void dismissWizard() {
