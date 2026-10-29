@@ -69,6 +69,7 @@ public class BedFragment extends Fragment {
     private final static int MENU_SIZE_DP = 80;
 
     private FrameLayout overlayLayout;
+    private ru.ytkab0bp.slicebeam.view.WizardOverlay wizardOverlay;
     private SnackbarsLayout snackbarsLayout;
     private GLView glView;
     private NavigationBarView navigationView;
@@ -333,6 +334,26 @@ public class BedFragment extends Fragment {
             overlayLayout.removeView(paintModeView);
             paintModeView = null;
         }
+    }
+
+    /** Guided mode panel over this screen: the plate stays live behind it. */
+    public void showWizard() {
+        if (wizardOverlay != null || overlayLayout == null) return;
+        wizardOverlay = new ru.ytkab0bp.slicebeam.view.WizardOverlay(this);
+        overlayLayout.addView(wizardOverlay, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        wizardOverlay.startPicker();
+    }
+
+    public void dismissWizard() {
+        if (wizardOverlay != null) {
+            overlayLayout.removeView(wizardOverlay);
+            wizardOverlay = null;
+        }
+    }
+
+    public ru.ytkab0bp.slicebeam.view.WizardOverlay getWizard() {
+        return wizardOverlay;
     }
 
     public boolean isPaintMode() {

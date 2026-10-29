@@ -407,4 +407,20 @@
     <string name="WizardBedScaleValue">%1$d %%</string>
     <string name="WizardBedAddMore">Add another part</string>
     <string name="WizardBedRealHint">To move parts by hand, leave the assistant: they stay on the plate and you can use the View tab and its tools. When you come back, the assistant continues where you left it.</string>
+    <string name="WizardFilesTitle">Files</string>
+    <string name="WizardFilesExplain">Choose the parts. You can select several at once in the picker: they all land on the plate.</string>
+    <string name="WizardFilesChoose">Choose STL / 3MF files</string>
+    <string name="WizardFilesEmpty">You have not chosen any part yet.</string>
+    <string name="WizardBedCount">Parts on the plate: %1$d</string>
+    <string name="WizardBedGestureHint">Move, rotate and pinch the parts right on the plate. Below you have arrange and scale.</string>
+    <string name="WizardBedScaleApplied">Scale applied: %1$d %%</string>
+    <string name="WizardBrimNoneShort">None</string>
+    <string name="WizardBrimAutoShort">Automatic</string>
+    <string name="WizardBrimOuterShort">Outer only</string>
+    <string name="WizardSkirtYesShort">Yes</string>
+    <string name="WizardSkirtNoShort">No</string>
+    <string name="WizardQualityRoughShort">Fast</string>
+    <string name="WizardQualityNormalShort">Normal</string>
+    <string name="WizardQualityFineShort">Fine</string>
+    <string name="WizardSliceFailed">Could not slice: %1$s</string>
 </resources>

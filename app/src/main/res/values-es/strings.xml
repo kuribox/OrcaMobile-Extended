@@ -407,4 +407,20 @@
     <string name="WizardBedScaleValue">%1$d %%</string>
     <string name="WizardBedAddMore">Añadir otra pieza</string>
     <string name="WizardBedRealHint">Si prefieres moverlas con el dedo, sal del asistente: quedan colocadas en la cama y puedes usar la pestaña Vista con sus herramientas. Al volver, el asistente sigue donde lo dejaste.</string>
+    <string name="WizardFilesTitle">Archivos</string>
+    <string name="WizardFilesExplain">Elige las piezas. Puedes marcar varias a la vez en el selector: se colocan todas en la cama.</string>
+    <string name="WizardFilesChoose">Elegir archivos STL / 3MF</string>
+    <string name="WizardFilesEmpty">Todavía no has elegido ninguna pieza.</string>
+    <string name="WizardBedCount">Piezas en la cama: %1$d</string>
+    <string name="WizardBedGestureHint">Mueve, gira y pellizca las piezas directamente sobre la cama. Aquí abajo tienes organizar y escalar.</string>
+    <string name="WizardBedScaleApplied">Escala aplicada: %1$d %%</string>
+    <string name="WizardBrimNoneShort">Sin borde</string>
+    <string name="WizardBrimAutoShort">Automático</string>
+    <string name="WizardBrimOuterShort">Solo exterior</string>
+    <string name="WizardSkirtYesShort">Sí</string>
+    <string name="WizardSkirtNoShort">No</string>
+    <string name="WizardQualityRoughShort">Rápida</string>
+    <string name="WizardQualityNormalShort">Normal</string>
+    <string name="WizardQualityFineShort">Fina</string>
+    <string name="WizardSliceFailed">No se pudo laminar: %1$s</string>
 </resources>

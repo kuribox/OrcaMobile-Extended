@@ -103,11 +103,7 @@ public class FileMenu extends ListBedMenu {
     /** Guided mode: model → printer → simple questions → filament → slice → send. */
     private void openWizard() {
         try {
-            if (fragment.getContext() instanceof ru.ytkab0bp.slicebeam.MainActivity) {
-                ((ru.ytkab0bp.slicebeam.MainActivity) fragment.getContext())
-                        .getNavigationDelegate()
-                        .pushFragment(new ru.ytkab0bp.slicebeam.fragment.WizardFragment());
-            }
+            fragment.showWizard();
         } catch (Throwable t) {
             // Never take the app down because of the assistant: show what happened instead.
             new ru.ytkab0bp.slicebeam.components.BeamAlertDialogBuilder(fragment.getContext())

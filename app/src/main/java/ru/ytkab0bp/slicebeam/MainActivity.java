@@ -281,17 +281,10 @@ public class MainActivity extends AppCompatActivity {
                 }
             } else if (requestCode == MainActivity.REQUEST_CODE_WIZARD_FILE) {
                 Fragment current = getNavigationDelegate().getCurrentFragment();
-                if (current instanceof ru.ytkab0bp.slicebeam.fragment.WizardFragment) {
-                    ru.ytkab0bp.slicebeam.fragment.WizardFragment wizard =
-                            (ru.ytkab0bp.slicebeam.fragment.WizardFragment) current;
-                    if (data.getClipData() != null && data.getClipData().getItemCount() > 1) {
-                        java.util.List<android.net.Uri> uris = new java.util.ArrayList<>();
-                        for (int i = 0; i < data.getClipData().getItemCount(); i++) {
-                            uris.add(data.getClipData().getItemAt(i).getUri());
-                        }
-                        wizard.onModelsPicked(uris);
-                    } else if (data.getData() != null) {
-                        wizard.onModelPicked(data.getData());
+                if (current instanceof BedFragment) {
+                    ru.ytkab0bp.slicebeam.view.WizardOverlay wizard = ((BedFragment) current).getWizard();
+                    if (wizard != null) {
+                        wizard.onPickerResult(data);
                     }
                 }
             } else if (requestCode == MainActivity.REQUEST_CODE_OPEN_FILE) {
