@@ -171,6 +171,7 @@ public class LocalHttpServer extends NanoHTTPD {
         StringBuilder sb = new StringBuilder();
         sb.append('{');
         sb.append("\"ready\":").append(bridge.isReady());
+        sb.append(",\"reason\":\"").append(SliceJob.escape(bridge.notReadyReason())).append('"');
         sb.append(",\"job\":").append(job.toJson());
         sb.append(",\"plate\":").append(bridge.statusJson());
         sb.append('}');

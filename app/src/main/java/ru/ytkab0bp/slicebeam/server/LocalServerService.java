@@ -73,6 +73,11 @@ public class LocalServerService extends Service {
         bedRef = new WeakReference<>(fragment);
     }
 
+    /** The bed may come and go: it is looked up per request instead of being captured on start. */
+    public static BedFragment currentBed() {
+        return bedRef.get();
+    }
+
     public static void detach(BedFragment fragment) {
         if (bedRef.get() == fragment) bedRef = new WeakReference<>(null);
     }
@@ -158,31 +163,24 @@ public class LocalServerService extends Service {
         }
         startForegroundSafely();
 
-        BedFragment bed = bedRef.get();
-        if (bed == null) {
-            notifyMessage(getString(R.string.LocalServerNeedsApp));
-            stopSelf();
-            return START_NOT_STICKY;
-        }
-
+        // No bed or no profiles yet is not a reason to refuse: the page loads and answers 409 until
+        // the View tab exists, which is what the user sees when the server "does nothing".
         try {
-            if (SliceBeam.CONFIG == null || SliceBeam.CONFIG.printerConfigs == null) {
-                notifyMessage(getString(R.string.LocalServerNeedsConfig));
-                stopSelf();
-                return START_NOT_STICKY;
-            }
             File web = new File(getFilesDir(), "web");
             copyWebAssets(web);
             File uploads = new File(getCacheDir(), "server");
             server = new LocalHttpServer(LocalHttpServer.DEFAULT_PORT,
-                    new BedPlateBridge(bed), web, uploads, token(this),
+                    new BedPlateBridge(), web, uploads, token(this),
                     ru.ytkab0bp.slicebeam.utils.CrashLog.file(this));
             running = true;
             keepAwake(true);
             handler.postDelayed(idleCheck, 60_000L);
             notifyForeground();
         } catch (Throwable t) {
-            notifyMessage(getString(R.string.LocalServerFailed, String.valueOf(t.getMessage())));
+            String message = getString(R.string.LocalServerFailed, String.valueOf(t.getMessage()));
+            notifyMessage(message);
+            android.widget.Toast.makeText(getApplicationContext(), message,
+                    android.widget.Toast.LENGTH_LONG).show();
             stopSelf();
         }
         return START_NOT_STICKY;

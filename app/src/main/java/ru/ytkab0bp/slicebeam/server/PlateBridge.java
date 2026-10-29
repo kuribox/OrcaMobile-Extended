@@ -43,4 +43,9 @@ public interface PlateBridge {
 
     /** False when the app screen is gone and the model cannot be touched. */
     boolean isReady();
+
+    /** Empty when ready; otherwise a short reason ("app_closed", "no_model", …). */
+    default String notReadyReason() {
+        return isReady() ? "" : "not_ready";
+    }
 }

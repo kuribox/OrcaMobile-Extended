@@ -54,6 +54,17 @@ async function refresh() {
         renderJob(status.job || {});
         refreshPreview(plate.parts && plate.parts.length);
         $('slice').disabled = !plate.parts || plate.parts.length === 0;
+        if (status.ready === false) {
+            const reason = status.reason || 'not_ready';
+            const text = {
+                app_closed: 'Abre la pestaña Vista en el teléfono: el servidor necesita la app abierta.',
+                no_model: 'La cama del teléfono todavía no está lista.',
+                no_profiles: 'El teléfono aún está cargando los perfiles.',
+                not_ready: 'El servidor no está listo todavía.'
+            }[reason] || reason;
+            $('parts-count').textContent = text;
+            setConn(false);
+        }
     } catch (e) {
         setConn(false);
     }

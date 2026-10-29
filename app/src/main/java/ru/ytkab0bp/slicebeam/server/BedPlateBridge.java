@@ -3,7 +3,6 @@ package ru.ytkab0bp.slicebeam.server;
 import android.text.TextUtils;
 
 import java.io.File;
-import java.lang.ref.WeakReference;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,36 +30,47 @@ public class BedPlateBridge implements PlateBridge {
     private static final Pattern WEIGHT = Pattern.compile("(?i)^;\\s*total filament weight \\[g\\]\\s*=\\s*(.*)$");
     private static final Pattern DURATION = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*([dhms])", Pattern.CASE_INSENSITIVE);
 
-    private final WeakReference<BedFragment> bed;
     private final List<String> names = new ArrayList<>();
     private final AtomicBoolean busy = new AtomicBoolean();
+    private int seeded;
 
-    public BedPlateBridge(BedFragment bed) {
-        this.bed = new WeakReference<>(bed);
-        seedNames();
+    public BedPlateBridge() {
     }
 
     private BedFragment fragment() {
-        return bed.get();
+        return LocalServerService.currentBed();
     }
 
-    private void seedNames() {
+    /** Picks up whatever is already on the plate when the server starts seeing it. */
+    private void seedNamesIfNeeded() {
+        if (seeded > 0 || !names.isEmpty()) return;
         BedFragment f = fragment();
         Model model = f == null ? null : f.getCurrentModel();
         if (model == null) return;
         for (int i = 0; i < model.getObjectsCount(); i++) {
             names.add("Pieza " + (i + 1));
         }
+        seeded = names.size();
     }
 
     @Override
     public boolean isReady() {
+        return notReadyReason().isEmpty();
+    }
+
+    /** Empty when the plate can be used; otherwise why not, for the web page and the logs. */
+    @Override
+    public String notReadyReason() {
         BedFragment f = fragment();
-        return f != null && f.getCurrentModel() != null;
+        if (f == null) return "app_closed";
+        if (f.getCurrentModel() == null) return "no_model";
+        if (SliceBeam.CONFIG == null || SliceBeam.CONFIG.printerConfigs == null) return "no_profiles";
+        return "";
     }
 
     @Override
     public String statusJson() {
+        seedNamesIfNeeded();
         BedFragment f = fragment();
         Model model = f == null ? null : f.getCurrentModel();
         ConfigObject printerPreset = SliceBeam.CONFIG == null
@@ -144,6 +154,7 @@ public class BedPlateBridge implements PlateBridge {
 
     @Override
     public byte[] previewPng(int maxWidth) {
+        seedNamesIfNeeded();
         File gcode = lastGcode();
         if (gcode != null && gcode.isFile()) {
             byte[] png = GCodeThumbnail.render(gcode, maxWidth);
