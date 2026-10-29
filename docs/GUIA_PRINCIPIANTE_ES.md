@@ -12,16 +12,17 @@ El asistente **no es otra pantalla**: es un panel que se abre encima de la Vista
 detrás es la cama de verdad, con tus modelos, así que puedes moverlos con el dedo mientras el panel
 te guía. Seis pasos:
 
-**Paso 1 · Archivos.** Al pulsar **Vista → Archivo → Asistente** se abre directamente el selector de
-Android. Puedes **marcar varios STL/3MF a la vez**: se cargan todos. Vuélvelo a pulsar si quieres
-añadir más; debajo ves la lista de piezas cargadas.
+**Paso 1 · Archivos.** Al pulsar **Vista → Archivo → Asistente** aparece el panel, no el selector.
+Pulsa **Elegir archivos STL / 3MF** y marca **varias piezas a la vez**; se colocan todas en la cama.
+Puedes volver a pulsarlo para añadir más y quitar cualquiera con la **✕** de la lista.
 
-**Paso 2 · La cama.** El panel baja y deja ver la cama real. Ahí mismo puedes **arrastrar, girar y
-pellizcar** las piezas. En el panel tienes:
+**Paso 2 · La cama.** El panel baja y deja ver la cama real. Arriba puedes **arrastrar** una pieza
+para moverla, **girarla con dos dedos** y **pellizcar** para acercar la vista. En el panel:
 
-- **Organizar** — reparte las piezas sin solaparse.
-- **−10 % / +10 %** — escala todas las piezas, el ajuste más habitual al empezar.
-- El número de piezas en la cama, para confirmar que están todas.
+- **Organizar** — reparte las piezas sin que se solapen.
+- **Escalar**: primero **toca la pieza** que quieres cambiar (se marca en naranja). Elige **%** o
+  **mm** y mueve los carruseles **X / Y / Z**; con el **candado cerrado** las tres medidas cambian
+  juntas y la pieza no se deforma, abierto puedes cambiar una sola. Nada cambia hasta **Aplicar**.
 
 **Paso 3 · Impresora.** Lista de perfiles de impresora; el que está en uso va resaltado.
 
