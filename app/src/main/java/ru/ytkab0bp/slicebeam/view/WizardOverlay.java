@@ -105,6 +105,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private android.widget.NumberPicker pickerX;
     private android.widget.NumberPicker pickerY;
     private android.widget.NumberPicker pickerZ;
+    private TextView valuesLabel;
     private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
 
     private boolean slicing;
@@ -409,6 +410,17 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         content.addView(carousels, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        valuesLabel = new TextView(ctx);
+        valuesLabel.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        valuesLabel.setGravity(Gravity.CENTER);
+        valuesLabel.setTextColor(ThemesRepo.getColor(android.R.attr.textColorPrimary));
+        LinearLayout.LayoutParams valuesParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        valuesParams.topMargin = ViewUtils.dp(2);
+        valuesParams.bottomMargin = ViewUtils.dp(6);
+        content.addView(valuesLabel, valuesParams);
+        updateValuesLabel();
+
         LinearLayout confirm = new LinearLayout(ctx);
         confirm.setOrientation(LinearLayout.HORIZONTAL);
         ImageView lock = new ImageView(ctx);
@@ -676,7 +688,9 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
             if (syncing) return;
             setPending(which, (newValue + 1) * stepSize());
             if (scaleLocked) syncPickers(which);
+            updateValuesLabel();
         });
+        applyPickerColors(picker);
         column.addView(picker, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewUtils.dp(112)));
 
@@ -727,6 +741,75 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         } catch (Exception ignored) {
         }
         syncing = false;
+        updateValuesLabel();
+    }
+
+    /** Readable echo of the three carousels: the wheel text depends on the system theme. */
+    private void updateValuesLabel() {
+        if (valuesLabel == null) return;
+        String unit = scaleInMm ? " mm" : " %%";
+        valuesLabel.setText(String.format(java.util.Locale.getDefault(),
+                "X " + formatValue(pendingX) + unit
+                        + "   Y " + formatValue(pendingY) + unit
+                        + "   Z " + formatValue(pendingZ) + unit));
+    }
+
+    /**
+     * NumberPicker paints its wheel with a colour taken from the platform theme, which on this
+     * custom theme is nearly invisible. Force the palette we use everywhere else.
+     */
+    private void applyPickerColors(android.widget.NumberPicker picker) {
+        int color = ThemesRepo.getColor(android.R.attr.textColorPrimary);
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                picker.setTextColor(color);
+            }
+        } catch (Throwable ignored) {
+        }
+        // Every TextView inside (the current value lives in an EditText).
+        try {
+            java.util.ArrayDeque<View> stack = new java.util.ArrayDeque<>();
+            stack.push(picker);
+            while (!stack.isEmpty()) {
+                View view = stack.pop();
+                if (view instanceof TextView) {
+                    ((TextView) view).setTextColor(color);
+                }
+                if (view instanceof ViewGroup) {
+                    ViewGroup group = (ViewGroup) view;
+                    for (int i = 0; i < group.getChildCount(); i++) {
+                        stack.push(group.getChildAt(i));
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        // The wheel rows are drawn with a Paint held by the widget: recolour it.
+        try {
+            recolourPaints(picker, color, 0);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void recolourPaints(Object target, int color, int depth) {
+        if (target == null || depth > 1) return;
+        Class<?> type = target.getClass();
+        while (type != null && type != Object.class) {
+            for (java.lang.reflect.Field field : type.getDeclaredFields()) {
+                try {
+                    field.setAccessible(true);
+                    Object value = field.get(target);
+                    if (value instanceof android.graphics.Paint) {
+                        ((android.graphics.Paint) value).setColor(color);
+                    } else if (depth == 0 && value != null
+                            && value.getClass().getName().startsWith("android.widget.NumberPicker")) {
+                        recolourPaints(value, color, depth + 1);
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+            type = type.getSuperclass();
+        }
     }
 
     private String formatValue(float value) {
