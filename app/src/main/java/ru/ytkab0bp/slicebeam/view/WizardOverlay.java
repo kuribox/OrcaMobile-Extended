@@ -60,8 +60,9 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private static final int STEP_PROFILE = 3;
     private static final int STEP_OPTIONS = 4;
     private static final int STEP_FILAMENT = 5;
-    private static final int STEP_SLICE = 6;
-    private static final int STEP_COUNT = 7;
+    private static final int STEP_TEMP_FLOW = 6;
+    private static final int STEP_SLICE = 7;
+    private static final int STEP_COUNT = 8;
 
     private static final Pattern TIME_COMMENT = Pattern.compile("(?i)^;\\s*estimated printing time[^=]*=\\s*(.*)$");
     private static final Pattern WEIGHT_COMMENT = Pattern.compile("(?i)^;\\s*total filament weight \\[g\\]\\s*=\\s*(.*)$");
@@ -107,6 +108,9 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private float appliedY = 1f;
     private float appliedZ = 1f;
     private int editingAxis;
+    private int tempC = 215;
+    private int flowPct = 100;
+    private boolean tempFlowSeeded;
     private final java.util.Map<Integer, float[]> partBase = new java.util.HashMap<>();
     private final java.util.Map<Integer, float[]> partApplied = new java.util.HashMap<>();
     private final TextView[] axisChips = new TextView[3];
@@ -344,6 +348,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
             case STEP_PROFILE: renderProfile(); break;
             case STEP_OPTIONS: renderOptions(); break;
             case STEP_FILAMENT: renderFilament(); break;
+            case STEP_TEMP_FLOW: renderTempFlow(); break;
             default: renderSlice(); break;
         }
         renderFooter();
@@ -553,10 +558,136 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                             SliceBeam.saveConfig();
                         } catch (Exception ignored) {
                         }
+                        // The temperature and flow step must read the new filament again.
+                        tempFlowSeeded = false;
+                        invalidateSlice();
                         step = STEP_FILAMENT;
                         render();
                     }, TextUtils.equals(filament, selected));
         }
+    }
+
+    /** Nozzle temperature and extrusion flow: the two filament values people change most. */
+    private void renderTempFlow() {
+        titleView.setText(R.string.WizardTempFlowTitle);
+        explainView.setText(R.string.WizardTempFlowExplain);
+
+        ConfigObject filament = activeFilament();
+        if (filament == null) {
+            addNote(ctx.getString(R.string.WizardFilamentMissing));
+            return;
+        }
+        seedTempFlow(filament);
+
+        content.addView(labelledPicker(R.string.WizardTempFlowTemp, " °C",
+                170, 300, 5, tempC, value -> tempC = Math.round(value)));
+        content.addView(labelledPicker(R.string.WizardTempFlowFlow, " %",
+                80, 120, 1, flowPct, value -> flowPct = Math.round(value)));
+        addNote(ctx.getString(R.string.WizardTempFlowTempNote));
+        addNote(ctx.getString(R.string.WizardTempFlowNote));
+    }
+
+    private ConfigObject activeFilament() {
+        if (SliceBeam.CONFIG == null) return null;
+        return SliceBeam.CONFIG.findFilament(SliceBeam.CONFIG.presets.get("filament"));
+    }
+
+    private void seedTempFlow(ConfigObject filament) {
+        if (tempFlowSeeded) return;
+        tempFlowSeeded = true;
+        tempC = parseInt(firstValue(filament, "nozzle_temperature", "temperature"), 215);
+        int flow = parseInt(firstValue(filament, "filament_flow_ratio", "extrusion_multiplier"), 100);
+        // Flow is stored as a ratio per filament.
+        if (flow <= 2) flow = Math.round(flow * 100f);
+        flowPct = Math.max(80, Math.min(120, flow));
+    }
+
+    private static String firstValue(ConfigObject object, String key, String legacyKey) {
+        String value = object.values.get(key);
+        if (TextUtils.isEmpty(value)) value = object.values.get(legacyKey);
+        if (TextUtils.isEmpty(value)) return null;
+        int comma = value.indexOf(',');
+        return comma > 0 ? value.substring(0, comma) : value;
+    }
+
+    private static int parseInt(String value, int fallback) {
+        if (TextUtils.isEmpty(value)) return fallback;
+        try {
+            return Math.round(Float.parseFloat(value.trim()));
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    /** Temperature and flow go into the chosen filament profile and are saved. */
+    private void applyTempFlow() {
+        ConfigObject filament = activeFilament();
+        if (filament == null) return;
+        java.util.Map<String, String> values = filament.values;
+        putEither(values, "nozzle_temperature", "temperature", String.valueOf(tempC));
+        putEither(values, "nozzle_temperature_initial_layer", "first_layer_temperature", String.valueOf(tempC));
+        putEither(values, "filament_flow_ratio", "extrusion_multiplier",
+                String.format(java.util.Locale.ROOT, "%.2f", flowPct / 100f));
+
+        java.util.Map<String, String> live = SliceBeam.LIVE_DIFF_FILAMENT.values;
+        live.remove("nozzle_temperature");
+        live.remove("temperature");
+        live.remove("nozzle_temperature_initial_layer");
+        live.remove("first_layer_temperature");
+        live.remove("filament_flow_ratio");
+        live.remove("extrusion_multiplier");
+
+        try {
+            SliceBeam.saveConfig();
+        } catch (Throwable ignored) {
+        }
+        invalidateSlice();
+    }
+
+    /** Respects the key the profile already uses (older profiles keep the legacy names). */
+    private static void putEither(java.util.Map<String, String> values, String key, String legacyKey, String value) {
+        if (values.containsKey(key)) {
+            values.put(key, value);
+        } else if (values.containsKey(legacyKey)) {
+            values.put(legacyKey, value);
+        } else {
+            values.put(key, value);
+        }
+    }
+
+    /** Label + wheel, one setting per row. */
+    private View labelledPicker(int titleRes, String unit, int min, int max, int step, int current,
+                                ValueConsumer onValue) {
+        LinearLayout column = new LinearLayout(ctx);
+        column.setOrientation(LinearLayout.VERTICAL);
+
+        TextView label = new TextView(ctx);
+        label.setText(titleRes);
+        label.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        label.setTextColor(ThemesRepo.getColor(android.R.attr.textColorSecondary));
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        labelParams.topMargin = ViewUtils.dp(8);
+        column.addView(label, labelParams);
+
+        android.widget.NumberPicker picker = new android.widget.NumberPicker(ctx);
+        picker.setMinValue(0);
+        picker.setMaxValue((max - min) / step);
+        picker.setWrapSelectorWheel(false);
+        picker.setFormatter(index -> (min + index * step) + unit);
+        picker.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        applyPickerColors(picker);
+        int index = Math.max(0, Math.min((max - min) / step, (current - min) / step));
+        picker.setValue(index);
+        picker.setOnValueChangedListener((p, oldValue, newValue) ->
+                onValue.accept(min + newValue * step));
+        column.addView(picker, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewUtils.dp(118)));
+        return column;
+    }
+
+    private interface ValueConsumer {
+        void accept(int value);
     }
 
     /** Entering this step slices: the result appears in the 3D viewer behind the panel. */
@@ -649,6 +780,7 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
                         return;
                     }
                     if (step == STEP_OPTIONS) applyAnswers();
+                    if (step == STEP_TEMP_FLOW) applyTempFlow();
                     step = Math.min(STEP_SLICE, step + 1);
                     render();
                 });

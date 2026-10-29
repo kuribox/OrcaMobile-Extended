@@ -10,7 +10,7 @@ Todos los nombres de botones y ajustes son los que verás **en español**.
 
 El asistente **no es otra pantalla**: es un panel que se abre encima de la Vista. Todo lo que ves
 detrás es la cama de verdad, con tus modelos, así que puedes moverlos con el dedo mientras el panel
-te guía. Siete pasos:
+te guía. Ocho pasos:
 
 **Paso 1 · Archivos.** Al pulsar **Vista → Archivo → Asistente** aparece el panel, no el selector.
 Pulsa **Elegir archivos STL / 3MF** y marca **varias piezas a la vez**; se colocan todas en la cama.
@@ -36,7 +36,11 @@ perfil que elegiste en el paso anterior**, así que no se pierden al cambiar de 
 
 **Paso 6 · Filamento.** Lista de filamentos cargados.
 
-**Paso 7 · Laminar.** Al llegar a este paso **lamina solo**, sin botón: muestra el progreso y al
+**Paso 7 · Temperatura y flujo.** Los dos valores de filamento que más se tocan: **temperatura de
+boquilla** (PLA sobre 200–215 °C, PETG 230–240 °C) y **flujo** (100 % es lo normal). Se guardan en el
+filamento elegido.
+
+**Paso 8 · Laminar.** Al llegar a este paso **lamina solo**, sin botón: muestra el progreso y al
 terminar verás el resultado en 3D detrás del panel, igual que en Vista, con tiempo, gramos, capas y
 velocidad media. Los botones son **Enviar**, **Enviar e imprimir**, **Descargar** y **Compartir**, y
 cada uno te pregunta G-code o `.gcode.3mf`.

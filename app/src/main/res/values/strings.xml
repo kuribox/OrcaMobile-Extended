@@ -443,4 +443,11 @@
     <string name="WizardProfileNote">The settings in the next steps are saved into the profile you pick here.</string>
     <string name="WizardOptionsNeedProfile">Pick the quality first: it is the profile these settings are stored in.</string>
     <string name="WizardOptionsInProfile">Stored in the profile: %1$s</string>
+    <string name="WizardTempFlowTitle">Temperature and flow</string>
+    <string name="WizardTempFlowExplain">The two filament values people change most. They are saved into the filament you picked.</string>
+    <string name="WizardTempFlowTemp">Nozzle temperature</string>
+    <string name="WizardTempFlowTempNote">Rule of thumb: PLA around 200–215 °C, PETG 230–240 °C, ABS 240–260 °C.</string>
+    <string name="WizardTempFlowFlow">Extrusion flow</string>
+    <string name="WizardTempFlowNote">100 % is the normal value. Thin walls: raise it. Excess material or burrs: lower it.</string>
+    <string name="WizardFilamentMissing">No active filament. Go back one step and pick one.</string>
 </resources>
