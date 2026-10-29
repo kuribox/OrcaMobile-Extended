@@ -396,4 +396,15 @@
     <string name="WizardDurationMinutes">%1$d min</string>
     <string name="WizardLoadingModel">Loading the model…</string>
     <string name="WizardOpenFailed">The guided assistant could not be opened</string>
+    <string name="WizardBedTitle">The plate</string>
+    <string name="WizardBedExplain">This is what you have loaded. You can add more parts, arrange them and scale them — the things you touch most before printing.</string>
+    <string name="WizardBedEmpty">No parts yet. Go back and choose a file.</string>
+    <string name="WizardBedPiece">Part %1$d</string>
+    <string name="WizardBedPieceSize">%1$d × %2$d × %3$d mm</string>
+    <string name="WizardBedActions">Placement</string>
+    <string name="WizardBedArrange">Arrange automatically</string>
+    <string name="WizardBedScale">Scale every part</string>
+    <string name="WizardBedScaleValue">%1$d %%</string>
+    <string name="WizardBedAddMore">Add another part</string>
+    <string name="WizardBedRealHint">To move parts by hand, leave the assistant: they stay on the plate and you can use the View tab and its tools. When you come back, the assistant continues where you left it.</string>
 </resources>

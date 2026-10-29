@@ -199,6 +199,8 @@ public abstract class NavigationDelegate {
         fr.onPause();
 
         Fragment prev = fragmentStack.get(currentSlot).get(fragmentStack.get(currentSlot).size() - 2);
+        // Pop now, so switching slots or pressing back cannot bring the closed screen back.
+        fragmentStack.get(currentSlot).pop();
 
         View wasView = container.getChildCount() > 0
                 ? container.getChildAt(container.getChildCount() - 1) : null;
@@ -232,16 +234,20 @@ public abstract class NavigationDelegate {
                         }
                         wasView.setAlpha(1f - value);
                     }
+                    // The returning screen must end exactly where it belongs: no residual offset.
                     if (isSwitchingWithX()) {
-                        newView.setTranslationX((1f - fValue) * newView.getWidth() * 0.75f);
+                        newView.setTranslationX(-(1f - value) * newView.getWidth() * 0.75f);
                     } else {
-                        newView.setTranslationY((1f - fValue) * newView.getHeight() * 0.75f);
+                        newView.setTranslationY(-(1f - value) * newView.getHeight() * 0.75f);
                     }
                     newView.setAlpha(value);
                 })
                 .addEndListener((animation, canceled, value, velocity) -> {
                     switchAnimation = null;
                     if (wasView != null) container.removeView(wasView);
+                    newView.setTranslationX(0f);
+                    newView.setTranslationY(0f);
+                    newView.setAlpha(1f);
                     prev.onResume();
                     fr.onDestroy();
                 });

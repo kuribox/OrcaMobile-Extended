@@ -6,21 +6,30 @@ Todos los nombres de botones y ajustes son los que verás **en español**.
 
 ---
 
-## 0. Modo asistente — todo en cinco pantallas (empieza por aquí)
+## 0. Modo asistente — todo en seis pantallas (empieza por aquí)
 
 Si es tu primera vez, no uses los menús sueltos: el **Asistente** te lleva de la mano.
 
 **Cómo entrar**: pestaña **Vista** → sección **Archivo** → botón **Asistente** (es el primero, con un
 destello). Si no lo ves, desliza la fila de botones.
 
-**Paso 1 · Elegir el modelo.** Pulsa **Elegir archivo STL / 3MF** y escoge el archivo en el selector
-de Android. Al cargarlo, la app lo orienta sola y lo deja apoyado en la cama.
+**Paso 1 · Elegir el modelo.** Pulsa **Elegir archivo STL / 3MF** y escoge el archivo (puedes marcar
+**varios a la vez**). Cada pieza se orienta sola y se coloca en la cama.
 
-**Paso 2 · Elegir la impresora.** Aparece la lista de perfiles que ya tienes configurados. Elige la
+**Paso 2 · La cama.** Aquí ves la lista de piezas con su tamaño en milímetros. Botones:
+
+- **Organizar automáticamente**: reparte las piezas sin que se solapen.
+- **Escalar todas las piezas**: 50 %, 75 %, 100 %, 125 % o 150 % — el ajuste que más se usa al
+  empezar (una figura de 20 cm no cabe en una cama de 22 cm).
+- **Añadir otra pieza**: vuelve al selector de archivos.
+- Si prefieres **moverlas con el dedo**, sal del asistente: las piezas se quedan en la cama y puedes
+  usar la pestaña Vista con sus herramientas. Al volver al asistente, sigue en el mismo paso.
+
+**Paso 3 · Elegir la impresora.** Aparece la lista de perfiles que ya tienes configurados. Elige la
 tuya; la app coloca la pieza otra vez sobre la cama de esa impresora. Si no aparece, sal del asistente
 y créala en la pestaña **Impresora** (mira el apartado Configurar la impresora, al final).
 
-**Paso 3 · Cuatro preguntas rápidas.** No hay que entender todos los ajustes; con esto sale bien la
+**Paso 4 · Cuatro preguntas rápidas.** No hay que entender todos los ajustes; con esto sale bien la
 mayoría de las piezas:
 
 | Pregunta | Cuándo elegir qué |
@@ -35,9 +44,9 @@ Estas respuestas **no modifican tus perfiles guardados**: se aplican como ajuste
 sesión (en la pestaña Impresión los verás marcados como cambios sin guardar, y el botón ↺ los
 descarta).
 
-**Paso 4 · Elegir el filamento.** Lista de perfiles de material. Define temperaturas y ventilación.
+**Paso 5 · Elegir el filamento.** Lista de perfiles de material. Define temperaturas y ventilación.
 
-**Paso 5 · Laminar y actuar.** Pulsa **Laminar ahora**. Al terminar verás una **miniatura** de la
+**Paso 6 · Laminar y actuar.** Pulsa **Laminar ahora**. Al terminar verás una **miniatura** de la
 pieza y cuatro datos: **tiempo estimado**, **filamento**, **capas** y **velocidad media**. Debajo, los
 botones:
 

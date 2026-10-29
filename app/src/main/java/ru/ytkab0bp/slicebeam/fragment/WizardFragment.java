@@ -53,11 +53,15 @@ import ru.ytkab0bp.slicebeam.utils.ViewUtils;
 public class WizardFragment extends Fragment implements IThemeView {
 
     private static final int STEP_MODEL = 0;
-    private static final int STEP_PRINTER = 1;
-    private static final int STEP_OPTIONS = 2;
-    private static final int STEP_FILAMENT = 3;
-    private static final int STEP_SLICE = 4;
-    private static final int STEP_COUNT = 5;
+    private static final int STEP_BED = 1;
+    private static final int STEP_PRINTER = 2;
+    private static final int STEP_OPTIONS = 3;
+    private static final int STEP_FILAMENT = 4;
+    private static final int STEP_SLICE = 5;
+    private static final int STEP_COUNT = 6;
+
+    /** Remembered so reopening the assistant continues where the user left it. */
+    private static int resumeStep = STEP_MODEL;
 
     private static final Pattern TIME_COMMENT =
             Pattern.compile("(?i)^;\\s*estimated printing time[^=]*=\\s*(.*)$");
@@ -68,7 +72,7 @@ public class WizardFragment extends Fragment implements IThemeView {
     private final List<String> printerTitles = new ArrayList<>();
     private final List<String> filamentTitles = new ArrayList<>();
 
-    private int step = STEP_MODEL;
+    private int step = resumeStep;
     private LinearLayout root;
     private LinearLayout body;
     private TextView stepLabel;
@@ -188,6 +192,7 @@ public class WizardFragment extends Fragment implements IThemeView {
 
         switch (step) {
             case STEP_MODEL: renderModel(); break;
+            case STEP_BED: renderBed(); break;
             case STEP_PRINTER: renderPrinter(); break;
             case STEP_OPTIONS: renderOptions(); break;
             case STEP_FILAMENT: renderFilament(); break;
@@ -205,6 +210,91 @@ public class WizardFragment extends Fragment implements IThemeView {
         }
         addButton(getContext().getString(R.string.WizardModelChoose), v -> pickModel());
         addNote(getContext().getString(R.string.WizardModelFormats));
+    }
+
+    /** The plate: what is loaded, arranged, scaled — or a jump to the real bed to drag things. */
+    private void renderBed() {
+        title.setText(R.string.WizardBedTitle);
+        explanation.setText(R.string.WizardBedExplain);
+
+        BedFragment bed = bed();
+        Model model = bed != null ? bed.getCurrentModel() : null;
+        int count = model == null ? 0 : model.getObjectsCount();
+
+        if (count == 0) {
+            addNote(getContext().getString(R.string.WizardBedEmpty));
+            return;
+        }
+
+        // Sizes come from the exact bounding box, the same value the slicer sees.
+        for (int i = 0; i < count; i++) {
+            ru.ytkab0bp.slicebeam.utils.Vec3d min = new ru.ytkab0bp.slicebeam.utils.Vec3d();
+            ru.ytkab0bp.slicebeam.utils.Vec3d max = new ru.ytkab0bp.slicebeam.utils.Vec3d();
+            String detail = null;
+            try {
+                model.getBoundingBoxExact(i, min, max);
+                detail = getContext().getString(R.string.WizardBedPieceSize,
+                        Math.round(max.x - min.x), Math.round(max.y - min.y), Math.round(max.z - min.z));
+            } catch (Exception ignored) {
+            }
+            addCard(getContext().getString(R.string.WizardBedPiece, i + 1), detail, false, null);
+        }
+
+        addSectionTitle(R.string.WizardBedActions);
+        addButton(getContext().getString(R.string.WizardBedArrange), v -> {
+            arrangeAll();
+            renderStep();
+        });
+
+        addSectionTitle(R.string.WizardBedScale);
+        LinearLayout row = new LinearLayout(getContext());
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        for (int percent : new int[]{50, 75, 100, 125, 150}) {
+            TextView chip = button(getContext().getString(R.string.WizardBedScaleValue, percent), v -> {
+                scaleAll(percent / 100f);
+                renderStep();
+            });
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            params.rightMargin = ViewUtils.dp(6);
+            row.addView(chip, params);
+        }
+        body.addView(row, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        addButton(getContext().getString(R.string.WizardBedAddMore), v -> pickModel());
+        addNote(getContext().getString(R.string.WizardBedRealHint));
+    }
+
+    /** Auto-arrange on the configured bed (no GL needed: Bed3D is a plain native object). */
+    private void arrangeAll() {
+        BedFragment bed = bed();
+        if (bed == null) return;
+        Model model = bed.getCurrentModel();
+        if (model == null) return;
+        try {
+            ru.ytkab0bp.slicebeam.slic3r.Bed3D bed3D = bed.getGlView().getRenderer().getBed();
+            if (bed3D != null) {
+                bed3D.arrange(model);
+            }
+            model.resetBoundingBox();
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void scaleAll(float factor) {
+        BedFragment bed = bed();
+        if (bed == null) return;
+        Model model = bed.getCurrentModel();
+        if (model == null) return;
+        try {
+            for (int i = 0; i < model.getObjectsCount(); i++) {
+                model.scale(i, factor, factor, factor);
+            }
+            model.resetBoundingBox();
+            arrangeAll();
+        } catch (Exception ignored) {
+        }
     }
 
     private void renderPrinter() {
@@ -320,6 +410,11 @@ public class WizardFragment extends Fragment implements IThemeView {
         if (step < STEP_SLICE) {
             boolean enabled = true;
             if (step == STEP_MODEL) enabled = modelFile != null;
+            if (step == STEP_BED) {
+                BedFragment bed = bed();
+                Model model = bed != null ? bed.getCurrentModel() : null;
+                enabled = model != null && model.getObjectsCount() > 0;
+            }
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             View next = button(getContext().getString(R.string.WizardNext), v -> {
@@ -344,7 +439,82 @@ public class WizardFragment extends Fragment implements IThemeView {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
+        // Several parts on the same plate are the common case for a beginner.
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         act.startActivityForResult(intent, MainActivity.REQUEST_CODE_WIZARD_FILE);
+    }
+
+    /** Called by MainActivity when the picker returns several files. */
+    public void onModelsPicked(List<Uri> uris) {
+        if (uris == null || uris.isEmpty()) return;
+        final BedFragment bed = bed();
+        if (bed == null) {
+            toast(getContext().getString(R.string.WizardNoBed));
+            return;
+        }
+        toast(getContext().getString(R.string.WizardLoadingModel));
+        final List<Uri> picked = new ArrayList<>(uris);
+        new Thread(() -> {
+            String failure = null;
+            String lastName = modelName;
+            for (Uri uri : picked) {
+                try {
+                    File target = copyToCache(uri);
+                    if (target == null) continue;
+                    bed.loadModel(target);
+                    lastName = target.getName();
+                } catch (Exception e) {
+                    failure = String.valueOf(e.getMessage());
+                }
+            }
+            Model model = bed.getCurrentModel();
+            if (model != null) {
+                try {
+                    bed.getGlView().getRenderer().getBed()
+                            .arrange(model);
+                    model.resetBoundingBox();
+                } catch (Exception ignored) {
+                }
+            }
+            final String error = failure;
+            final String name = lastName;
+            ViewUtils.postOnMainThread(() -> {
+                if (error != null) {
+                    new BeamAlertDialogBuilder(getContext())
+                            .setTitle(R.string.MenuFileOpenFileFailed)
+                            .setMessage(error)
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show();
+                }
+                modelFile = new File(SliceBeam.INSTANCE.getCacheDir(), "wizard");
+                modelName = name;
+                step = STEP_BED;
+                renderStep();
+            });
+        }, "wizard-import").start();
+    }
+
+    /** Copies a picked document into the app cache so the engine can open it by path. */
+    private File copyToCache(Uri uri) {
+        Activity act = activity();
+        if (act == null) return null;
+        try {
+            ContentResolver resolver = act.getContentResolver();
+            String name = ru.ytkab0bp.slicebeam.utils.IOUtils.getDisplayName(uri);
+            if (name == null) name = "modelo.stl";
+            File dir = new File(SliceBeam.INSTANCE.getCacheDir(), "wizard");
+            dir.mkdirs();
+            File target = new File(dir, System.currentTimeMillis() + "_" + name);
+            try (InputStream in = resolver.openInputStream(uri);
+                 OutputStream out = new FileOutputStream(target)) {
+                byte[] buffer = new byte[64 * 1024];
+                int len;
+                while ((len = in.read(buffer)) > 0) out.write(buffer, 0, len);
+            }
+            return target;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** Called by MainActivity when the file picker returns while this screen is on top. */
@@ -644,6 +814,10 @@ public class WizardFragment extends Fragment implements IThemeView {
     }
 
     private void close() {
+        // Keep the place: leaving to arrange on the real bed and coming back should not restart.
+        BedFragment bedFragment = bed();
+        Model model = bedFragment != null ? bedFragment.getCurrentModel() : null;
+        resumeStep = (model != null && model.getObjectsCount() > 0) ? step : STEP_MODEL;
         Activity act = activity();
         if (act instanceof MainActivity) {
             ((MainActivity) act).getNavigationDelegate().destroyCurrent();

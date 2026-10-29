@@ -1210,6 +1210,12 @@ public class BedFragment extends Fragment {
                     }
                     int firstNewObject = currentModel.getObjectsCount();
                     int addedObjects = m.getObjectsCount();
+                    // Register the objects now: the GL callback may never run while this screen is
+                    // paused (the guided assistant works on top of it), and callers that slice or
+                    // measure the plate need the model list to be up to date.
+                    for (int i = 0; i < addedObjects; i++) {
+                        currentModel.addObject(m, i);
+                    }
                     if (!preserveProjectLayout) {
                         Vec3d objMin = new Vec3d(), objMax = new Vec3d();
                         Vec3d objTranslate = new Vec3d();
@@ -1221,9 +1227,6 @@ public class BedFragment extends Fragment {
                         }
                     }
 
-                    for (int i = 0; i < addedObjects; i++) {
-                        currentModel.addObject(m, i);
-                    }
                     m.release();
                     currentModel.resetBoundingBox();
                     if (!preserveProjectLayout) {
@@ -1236,6 +1239,9 @@ public class BedFragment extends Fragment {
                 }
             });
         } else {
+            // The plate list is plain bookkeeping: update it synchronously so the model is visible to
+            // callers even when the GL surface is paused. Only the renderer swap stays on the GL thread.
+            platesModels.set(currentPlateIndex, m);
             glView.queueEvent(new Runnable() {
                 @Override
                 public void run() {
@@ -1245,7 +1251,6 @@ public class BedFragment extends Fragment {
                         return;
                     }
                     if (currentModel != null) currentModel.release();
-                    platesModels.set(currentPlateIndex, m);
                     glView.getRenderer().setModel(m);
                     int addedObjects = m.getObjectsCount();
 

@@ -396,4 +396,15 @@
     <string name="WizardDurationMinutes">%1$d min</string>
     <string name="WizardLoadingModel">Cargando el modelo…</string>
     <string name="WizardOpenFailed">No se pudo abrir el asistente</string>
+    <string name="WizardBedTitle">La cama</string>
+    <string name="WizardBedExplain">Aquí ves lo que has cargado. Puedes añadir más piezas, ordenarlas y escalarlas: es lo que más se toca antes de imprimir.</string>
+    <string name="WizardBedEmpty">No hay piezas todavía. Vuelve atrás y elige un archivo.</string>
+    <string name="WizardBedPiece">Pieza %1$d</string>
+    <string name="WizardBedPieceSize">%1$d × %2$d × %3$d mm</string>
+    <string name="WizardBedActions">Colocación</string>
+    <string name="WizardBedArrange">Organizar automáticamente</string>
+    <string name="WizardBedScale">Escalar todas las piezas</string>
+    <string name="WizardBedScaleValue">%1$d %%</string>
+    <string name="WizardBedAddMore">Añadir otra pieza</string>
+    <string name="WizardBedRealHint">Si prefieres moverlas con el dedo, sal del asistente: quedan colocadas en la cama y puedes usar la pestaña Vista con sus herramientas. Al volver, el asistente sigue donde lo dejaste.</string>
 </resources>
