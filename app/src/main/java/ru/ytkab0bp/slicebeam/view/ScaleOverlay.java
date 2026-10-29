@@ -38,12 +38,12 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
     private final LinearLayout panel;
     private final LinearLayout content;
 
-    private PositionScrollView xTrack, yTrack, zTrack;
+    private android.widget.SeekBar xTrack, yTrack, zTrack;
+    private boolean updatingBars;
     private TextView xTitle, yTitle, zTitle;
 
     private int objectIndex = -1;
     private boolean locked = true;
-    private final int[] lastPosition = new int[]{100, 100, 100};
     private double baseX = 1, baseY = 1, baseZ = 1;
     private double appliedX = 1, appliedY = 1, appliedZ = 1;
     private boolean syncing;
@@ -137,9 +137,9 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
             Vec3d max = new Vec3d();
             model.getBoundingBoxExact(objectIndex, min, max);
             model.getScale(objectIndex, tempVec);
-            baseX = Math.max(0.1, (max.x - min.x) / Math.max(0.001, Math.abs(tempVec.x)));
-            baseY = Math.max(0.1, (max.y - min.y) / Math.max(0.001, Math.abs(tempVec.y)));
-            baseZ = Math.max(0.1, (max.z - min.z) / Math.max(0.001, Math.abs(tempVec.z)));
+            baseX = Math.max(0.1, (max.x - min.x) / safeFactor(tempVec.x));
+            baseY = Math.max(0.1, (max.y - min.y) / safeFactor(tempVec.y));
+            baseZ = Math.max(0.1, (max.z - min.z) / safeFactor(tempVec.z));
         } catch (Throwable ignored) {
         }
         appliedX = 1;
@@ -188,16 +188,52 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
         return title;
     }
 
-    private PositionScrollView addTrack(int colorAttr, int axis) {
-        PositionScrollView track = new PositionScrollView(ctx);
-        track.setActiveColor(colorAttr);
-        track.setMinMax(1, MAX_PERCENT);
-        track.setCurrentPosition(100, false);
-        track.setProgressListener(integer -> preview(axis, integer));
-        track.setListener(integer -> commit(axis, integer));
-        content.addView(track, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewUtils.dp(78)));
-        return track;
+    /**
+     * Plain SeekBar in percent of the size this screen started with. Its position is deterministic —
+     * no fling, no rebound — so the number on screen is always the size of the part. The old
+     * PositionScrollView control bounced and its position ended up being taken as a measurement.
+     */
+    private android.widget.SeekBar addTrack(int colorAttr, int axis) {
+        android.widget.SeekBar bar = new android.widget.SeekBar(ctx);
+        bar.setMax(MAX_PERCENT - 1);
+        bar.setProgress(percentOf(axis) - 1);
+        bar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                if (!fromUser || updatingBars) return;
+                double target = (progress + 1) / 100.0;
+                updateTitles(targetFor(axis, target));
+            }
+
+            @Override
+            public void onStartTrackingTouch(android.widget.SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                if (updatingBars) return;
+                commit(axis, (seekBar.getProgress() + 1) / 100.0);
+            }
+        });
+        content.addView(bar, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewUtils.dp(44)));
+        return bar;
+    }
+
+    private int percentOf(int axis) {
+        return (int) Math.max(1, Math.min(MAX_PERCENT, Math.round(applied(axis) * 100)));
+    }
+
+    private double[] targetFor(int axis, double target) {
+        double[] values = new double[]{appliedX, appliedY, appliedZ};
+        if (locked) {
+            values[0] = target;
+            values[1] = target;
+            values[2] = target;
+        } else {
+            values[axis] = target;
+        }
+        return values;
     }
 
     private LinearLayout.LayoutParams weighted(float weight) {
@@ -222,8 +258,12 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
         return button;
     }
 
-    private double applied(int axis) {
-        return axis == 0 ? appliedX : axis == 1 ? appliedY : appliedZ;
+
+    private static double safeFactor(double value) {
+        double factor = Math.abs(value);
+        // A broken read-back must not turn into a huge "100 %" size.
+        if (!Double.isFinite(factor) || factor < 0.01 || factor > 100) return 1;
+        return factor;
     }
 
     private double base(int axis) {
@@ -235,78 +275,49 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
     }
 
     private void updateTitles() {
+        updateTitles(new double[]{appliedX, appliedY, appliedZ});
+    }
+
+    private void updateTitles(double[] values) {
         if (xTitle == null) return;
-        xTitle.setText(describe(0, R.string.ScaleAxisX));
-        yTitle.setText(describe(1, R.string.ScaleAxisY));
-        zTitle.setText(describe(2, R.string.ScaleAxisZ));
+        xTitle.setText(describe(R.string.ScaleAxisX, values[0], baseX));
+        yTitle.setText(describe(R.string.ScaleAxisY, values[1], baseY));
+        zTitle.setText(describe(R.string.ScaleAxisZ, values[2], baseZ));
     }
 
-    private String describe(int axis, int labelRes) {
+    private String describe(int labelRes, double factor, double base) {
         return String.format(Locale.getDefault(), "%s  %.0f %%  ·  %.1f mm",
-                ctx.getString(labelRes), applied(axis) * 100, factor(axis));
+                ctx.getString(labelRes), factor * 100, base * factor);
     }
 
-    /**
-     * The bar is a relative control, like the tools menu: what matters is how far it moved since the
-     * last commit, never the position itself. Absolute positions were being treated as the truth and a
-     * bounce of the bar became a valid measurement.
-     */
-    private void preview(int axis, int position) {
-        if (syncing) return;
-        try {
-            double delta = position / (double) Math.max(1, lastPosition[axis]);
-            float d = (float) delta;
-            float dx = locked || axis == 0 ? d : 1f;
-            float dy = locked || axis == 1 ? d : 1f;
-            float dz = locked || axis == 2 ? d : 1f;
-            bed.getGlView().getRenderer().setSelectionScale(dx, dy, dz);
-            bed.getGlView().requestRender();
-        } catch (Throwable ignored) {
-        }
+    private double applied(int axis) {
+        return axis == 0 ? appliedX : axis == 1 ? appliedY : appliedZ;
     }
 
-    private void commit(int axis, int position) {
-        if (syncing) return;
-        double delta = position / (double) Math.max(1, lastPosition[axis]);
-        lastPosition[axis] = position;
-        if (Math.abs(delta - 1) < 1e-4) return;
+    /** Applies the absolute target of that bar (and the other two when the padlock is closed). */
+    private void commit(int axis, double target) {
+        if (updatingBars) return;
+        Model model = model();
+        if (model == null || objectIndex < 0) return;
 
-        syncing = true;
+        double[] targets = targetFor(axis, target);
+        double rx = targets[0] / Math.max(0.001, appliedX);
+        double ry = targets[1] / Math.max(0.001, appliedY);
+        double rz = targets[2] / Math.max(0.001, appliedZ);
+        if (Math.abs(rx - 1) < 1e-4 && Math.abs(ry - 1) < 1e-4 && Math.abs(rz - 1) < 1e-4) return;
+
+        updatingBars = true;
         try {
-            Model model = model();
-            if (model != null && objectIndex >= 0) {
-                double[] factors = new double[]{1, 1, 1};
-                if (locked) {
-                    factors[0] = delta;
-                    factors[1] = delta;
-                    factors[2] = delta;
-                } else {
-                    factors[axis] = delta;
-                }
-                applyFactors(model, factors[0], factors[1], factors[2]);
-                if (locked) {
-                    appliedX *= delta;
-                    appliedY *= delta;
-                    appliedZ *= delta;
-                } else if (axis == 0) {
-                    appliedX *= delta;
-                } else if (axis == 1) {
-                    appliedY *= delta;
-                } else {
-                    appliedZ *= delta;
-                }
-            }
-            // Back to the neutral centre: the next drag starts from "no change".
-            resetTrackPositions();
-            try {
-                bed.getGlView().getRenderer().setSelectionScale(1, 1, 1);
-            } catch (Throwable ignored) {
-            }
+            applyFactors(model, rx, ry, rz);
+            appliedX = targets[0];
+            appliedY = targets[1];
+            appliedZ = targets[2];
+            syncBars();
             bed.invalidateModel();
-            updateTitles();
+            updateTitles(targets);
         } catch (Throwable ignored) {
         } finally {
-            syncing = false;
+            updatingBars = false;
         }
     }
 
@@ -335,13 +346,22 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
         }
     }
 
+    private void syncBars() {
+        updatingBars = true;
+        try {
+            if (xTrack != null) xTrack.setProgress(percentOf(0) - 1);
+            if (yTrack != null) yTrack.setProgress(percentOf(1) - 1);
+            if (zTrack != null) zTrack.setProgress(percentOf(2) - 1);
+        } finally {
+            updatingBars = false;
+        }
+    }
+
     private void resetTrackPositions() {
-        if (xTrack != null) xTrack.setCurrentPosition(100, false);
-        if (yTrack != null) yTrack.setCurrentPosition(100, false);
-        if (zTrack != null) zTrack.setCurrentPosition(100, false);
-        lastPosition[0] = 100;
-        lastPosition[1] = 100;
-        lastPosition[2] = 100;
+        appliedX = 1;
+        appliedY = 1;
+        appliedZ = 1;
+        syncBars();
     }
 
     private void reset() {

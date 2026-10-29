@@ -609,7 +609,10 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         }
     }
 
-    /** Label + wheel, one setting per row. Steps can be fractional (volumetric speed). */
+    /**
+     * Label + value + slider. A NumberPicker here drew its selected row with the theme's own colour,
+     * which on this theme is the same as the panel background, so the value was invisible.
+     */
     private View labelledPicker(int titleRes, String unit, int min, int max, float step,
                                 float current, ValueConsumer onValue) {
         LinearLayout column = new LinearLayout(ctx);
@@ -624,27 +627,46 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         labelParams.topMargin = ViewUtils.dp(8);
         column.addView(label, labelParams);
 
-        android.widget.NumberPicker picker = new android.widget.NumberPicker(ctx);
-        picker.setMinValue(0);
+        final TextView valueLabel = new TextView(ctx);
+        valueLabel.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
+        valueLabel.setTypeface(ViewUtils.getTypeface(ViewUtils.ROBOTO_MEDIUM));
+        valueLabel.setTextColor(ThemesRepo.getColor(android.R.attr.textColorPrimary));
+        column.addView(valueLabel, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
         int count = Math.round((max - min) / step);
-        picker.setMaxValue(count);
-        picker.setWrapSelectorWheel(false);
-        picker.setFormatter(index -> {
-            float value = min + index * step;
-            String text = step < 1f
-                    ? String.format(java.util.Locale.ROOT, "%.1f", value)
-                    : String.valueOf(Math.round(value));
-            return text + unit;
+        android.widget.SeekBar bar = new android.widget.SeekBar(ctx);
+        bar.setMax(count);
+        bar.setProgress(Math.max(0, Math.min(count, Math.round((current - min) / step))));
+        valueLabel.setText(formatValue(min + bar.getProgress() * step, step, unit));
+        bar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                float value = min + progress * step;
+                valueLabel.setText(formatValue(value, step, unit));
+                if (fromUser) onValue.accept(value);
+            }
+
+            @Override
+            public void onStartTrackingTouch(android.widget.SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+            }
         });
-        picker.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
-        applyPickerColors(picker);
-        int index = Math.max(0, Math.min(count, Math.round((current - min) / step)));
-        picker.setValue(index);
-        picker.setOnValueChangedListener((p, oldValue, newValue) ->
-                onValue.accept(min + newValue * step));
-        column.addView(picker, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewUtils.dp(118)));
+        LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewUtils.dp(44));
+        barParams.topMargin = ViewUtils.dp(2);
+        column.addView(bar, barParams);
         return column;
+    }
+
+    private static String formatValue(float value, float step, String unit) {
+        String text = step < 1f
+                ? String.format(java.util.Locale.getDefault(), "%.1f", value)
+                : String.valueOf(Math.round(value));
+        return text + unit;
     }
 
     private interface ValueConsumer {

@@ -459,6 +459,6 @@
     <string name="ScaleAxisX">X</string>
     <string name="ScaleAxisY">Y</string>
     <string name="ScaleAxisZ">Z</string>
-    <string name="WizardBedOpenScale">Escalar (pantalla aparte)</string>
+    <string name="WizardBedOpenScale">Escalar</string>
     <string name="MenuFileScale">Escalar</string>
 </resources>

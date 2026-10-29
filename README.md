@@ -154,10 +154,12 @@ edits (`SliceBeam.LIVE_DIFF_PRINT`) and a finished slice stays in the viewer.
 | 8 · Slice | Slicing starts on entering the step (no button), with a spinner, a 3-minute timeout and `Throwable` handling so an out-of-memory is an error message, not a frozen panel. The result loads through `BedFragment.loadGCode`, so the preview is the View tab's own, followed by send / send and print / download / share on their own row. |
 
 Scaling is its own screen (`ScaleOverlay`, opened from *View → File → Scale* or from the assistant),
-built with the same `PositionScrollView` tracks and the same transform maths as the tools menu: three
-bars for X / Y / Z showing percentage and resulting millimetres, plus *Back to 100 %*. It keeps its own
-bookkeeping — each commit sends `target / already applied` — so the numbers mean what they say and 100 %
-is the size the part had when the screen opened. The old wizard fields and their padlock are gone: closed keeps the
+with the same transform maths as the tools menu (including the rotation and mirror compensation) but
+plain `SeekBar`s instead of the infinite scroller: three bars for X / Y / Z in percent of the size the
+screen opened with, each showing the resulting millimetres, a padlock for proportional scaling and
+*Back to 100 %*. The bar positions are deterministic — the old scroller bounced and its position ended up
+being read as a measurement, which is what made the part jump to a wrong size. The old wizard fields are
+gone: closed keeps the
 proportions — in mm the other axes follow the same ratio, they are not forced to the same millimetre
 value — open lets one dimension change. Nothing is applied until *Apply*, and the delta is computed against
 what the panel already applied — the engine caches object boxes, so re-reading them made every Apply
