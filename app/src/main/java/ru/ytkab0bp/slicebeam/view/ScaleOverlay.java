@@ -131,17 +131,8 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
             return;
         }
 
-        // Base size: what the part measures now, which is what "100 %" means on this screen.
-        try {
-            Vec3d min = new Vec3d();
-            Vec3d max = new Vec3d();
-            model.getBoundingBoxExact(objectIndex, min, max);
-            model.getScale(objectIndex, tempVec);
-            baseX = Math.max(0.1, (max.x - min.x) / safeFactor(tempVec.x));
-            baseY = Math.max(0.1, (max.y - min.y) / safeFactor(tempVec.y));
-            baseZ = Math.max(0.1, (max.z - min.z) / safeFactor(tempVec.z));
-        } catch (Throwable ignored) {
-        }
+        // Base size measured on the GL thread, like every other model read in this app.
+        readGeometry(model);
         appliedX = 1;
         appliedY = 1;
         appliedZ = 1;
@@ -175,6 +166,40 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
         actions.addView(primaryButton(R.string.ScaleReset, v -> reset()), weighted(1f));
         actions.addView(primaryButton(R.string.ScaleDone, v -> bed.dismissScale()), weighted(1f));
         content.addView(actions, actionsParams);
+    }
+
+    /** Measures the part (and its current scale) inside a GL event so it cannot race the renderer. */
+    private void readGeometry(final Model model) {
+        final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        final double[] sizes = new double[]{10, 10, 10};
+        final double[] factors = new double[]{1, 1, 1};
+        try {
+            if (bed.getGlView() != null) {
+                bed.getGlView().queueEvent(() -> {
+                    try {
+                        model.resetBoundingBox();
+                        Vec3d min = new Vec3d();
+                        Vec3d max = new Vec3d();
+                        model.getBoundingBoxExact(objectIndex, min, max);
+                        model.getScale(objectIndex, tempVec);
+                        sizes[0] = max.x - min.x;
+                        sizes[1] = max.y - min.y;
+                        sizes[2] = max.z - min.z;
+                        factors[0] = tempVec.x;
+                        factors[1] = tempVec.y;
+                        factors[2] = tempVec.z;
+                    } catch (Throwable ignored) {
+                    } finally {
+                        latch.countDown();
+                    }
+                });
+                latch.await(800, java.util.concurrent.TimeUnit.MILLISECONDS);
+            }
+        } catch (Throwable ignored) {
+        }
+        baseX = Math.max(0.1, sizes[0] / safeFactor(factors[0]));
+        baseY = Math.max(0.1, sizes[1] / safeFactor(factors[1]));
+        baseZ = Math.max(0.1, sizes[2] / safeFactor(factors[2]));
     }
 
     private TextView addAxis(int colorAttr, String label) {
@@ -313,7 +338,6 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
             appliedY = targets[1];
             appliedZ = targets[2];
             syncBars();
-            bed.invalidateModel();
             updateTitles(targets);
         } catch (Throwable ignored) {
         } finally {
@@ -321,27 +345,59 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
         }
     }
 
-    /** Rotation and mirror must be accounted for, exactly like TransformMenu.scale(). */
-    private void applyFactors(Model model, double dx, double dy, double dz) {
-        try {
-            model.getRotation(objectIndex, tempVec);
-            ru.ytkab0bp.slicebeam.utils.DoubleMatrix.setIdentityM(tempMatrix, 0);
-            ru.ytkab0bp.slicebeam.utils.DoubleMatrix.rotateM(tempMatrix, 0, Math.toDegrees(tempVec.x), 1, 0, 0);
-            ru.ytkab0bp.slicebeam.utils.DoubleMatrix.rotateM(tempMatrix, 0, Math.toDegrees(tempVec.y), 0, 1, 0);
-            ru.ytkab0bp.slicebeam.utils.DoubleMatrix.rotateM(tempMatrix, 0, Math.toDegrees(tempVec.z), 0, 0, 1);
-            tempVecArr[0] = dx;
-            tempVecArr[1] = dy;
-            tempVecArr[2] = dz;
-            tempVecArr[3] = 1;
-            ru.ytkab0bp.slicebeam.utils.DoubleMatrix.multiplyMV(tempVecArr, 0, tempMatrix, 0, tempVecArr, 0);
-            double rx = Math.abs(tempVecArr[0] / tempVecArr[3]);
-            double ry = Math.abs(tempVecArr[1] / tempVecArr[3]);
-            double rz = Math.abs(tempVecArr[2] / tempVecArr[3]);
+    /**
+     * Applies the transform on the GL thread, exactly like TransformMenu: mutating the model from the
+     * UI thread raced with the renderer, which is what made the first commit land and the second land
+     * on a stale state (or move the part somewhere else).
+     *
+     * <p>Rotation and mirror are compensated, and the part is dropped onto the bed by hand on Z
+     * instead of using the native "ensure on bed" (which decides with its own cached box and moved
+     * parts sideways when the cache was stale).
+     */
+    private void applyFactors(final Model model, final double dx, final double dy, final double dz) {
+        if (bed.getGlView() == null) return;
+        bed.getGlView().queueEvent(() -> {
+            try {
+                model.resetBoundingBox();
+                model.getRotation(objectIndex, tempVec);
+                ru.ytkab0bp.slicebeam.utils.DoubleMatrix.setIdentityM(tempMatrix, 0);
+                ru.ytkab0bp.slicebeam.utils.DoubleMatrix.rotateM(tempMatrix, 0, Math.toDegrees(tempVec.x), 1, 0, 0);
+                ru.ytkab0bp.slicebeam.utils.DoubleMatrix.rotateM(tempMatrix, 0, Math.toDegrees(tempVec.y), 0, 1, 0);
+                ru.ytkab0bp.slicebeam.utils.DoubleMatrix.rotateM(tempMatrix, 0, Math.toDegrees(tempVec.z), 0, 0, 1);
+                tempVecArr[0] = dx;
+                tempVecArr[1] = dy;
+                tempVecArr[2] = dz;
+                tempVecArr[3] = 1;
+                ru.ytkab0bp.slicebeam.utils.DoubleMatrix.multiplyMV(tempVecArr, 0, tempMatrix, 0, tempVecArr, 0);
+                double rx = Math.abs(tempVecArr[0] / tempVecArr[3]);
+                double ry = Math.abs(tempVecArr[1] / tempVecArr[3]);
+                double rz = Math.abs(tempVecArr[2] / tempVecArr[3]);
 
-            model.getMirror(objectIndex, tempVec);
-            model.scale(objectIndex, rx * tempVec.x, ry * tempVec.y, rz * tempVec.z);
-            model.ensureOnBed(objectIndex);
-            model.resetBoundingBox();
+                model.getMirror(objectIndex, tempVec);
+                model.scale(objectIndex, rx * tempVec.x, ry * tempVec.y, rz * tempVec.z);
+                model.resetBoundingBox();
+                dropOnBed(model);
+
+                bed.getGlView().getRenderer().invalidateSelectionObject();
+                bed.getGlView().getRenderer().setSelectionScale(1, 1, 1);
+                bed.getGlView().getRenderer().invalidateGlModel(objectIndex);
+                bed.getGlView().requestRender();
+            } catch (Throwable ignored) {
+            }
+        });
+        bed.getGlView().requestRender();
+    }
+
+    /** Puts the part back on the bed surface without moving it sideways. */
+    private void dropOnBed(Model model) {
+        try {
+            Vec3d min = new Vec3d();
+            Vec3d max = new Vec3d();
+            model.getBoundingBoxExact(objectIndex, min, max);
+            if (min.z < -0.01 || min.z > 0.01) {
+                model.translate(objectIndex, 0, 0, -min.z);
+                model.resetBoundingBox();
+            }
         } catch (Throwable ignored) {
         }
     }
@@ -378,7 +434,6 @@ public class ScaleOverlay extends FrameLayout implements IThemeView {
             appliedY = 1;
             appliedZ = 1;
             resetTrackPositions();
-            bed.invalidateModel();
             updateTitles();
         } catch (Throwable ignored) {
         } finally {
