@@ -30,6 +30,7 @@ import ru.ytkab0bp.slicebeam.SliceBeam;
 import ru.ytkab0bp.slicebeam.components.BeamAlertDialogBuilder;
 import ru.ytkab0bp.slicebeam.components.UnfoldMenu;
 import ru.ytkab0bp.slicebeam.events.NeedSnackbarEvent;
+import ru.ytkab0bp.slicebeam.fragment.BedFragment;
 import ru.ytkab0bp.slicebeam.events.ObjectsListChangedEvent;
 import ru.ytkab0bp.slicebeam.events.SelectedObjectChangedEvent;
 import ru.ytkab0bp.slicebeam.recycler.PreferenceSwitchItem;
@@ -50,6 +51,21 @@ public class TransformMenu extends ListBedMenu {
 
     // Toolbar items that should only be enabled when an object is selected.
     private final java.util.List<BedMenuItem> selectionItems = new java.util.ArrayList<>();
+
+    /** Opens the toolbar's own scale menu (used by the guided assistant). Needs a selected part. */
+    public static void showScaleMenu(BedFragment fragment, View from) {
+        try {
+            if (fragment.getGlView().getRenderer().getModel() == null
+                    || fragment.getGlView().getRenderer().getSelectedObject() == -1) {
+                SliceBeam.EVENT_BUS.fireEvent(new NeedSnackbarEvent(R.string.ScaleSelectPart));
+                return;
+            }
+            TransformMenu parent = new TransformMenu();
+            parent.onSetBed(fragment);
+            fragment.showUnfoldMenu(parent.new ScaleMenu(), from);
+        } catch (Exception ignored) {
+        }
+    }
 
     private boolean hasSelection() {
         return fragment.getGlView().getRenderer().getModel() != null && fragment.getGlView().getRenderer().getSelectedObject() != -1;

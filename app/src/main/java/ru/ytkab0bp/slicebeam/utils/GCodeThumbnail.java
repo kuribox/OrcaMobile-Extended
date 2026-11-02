@@ -95,6 +95,69 @@ public final class GCodeThumbnail {
     }
 
     /**
+     * Returns a copy of the G-code carrying a {@code THUMBNAIL_BLOCK} (the layout OrcaSlicer writes for
+     * Flashforge printers), or the file itself when it already has one. Printers that receive plain G-code
+     * (console upload, download, share) read their preview from this block; the sliced file has none.
+     */
+    public static File withEmbeddedThumbnail(File gcode, File dest, int width, int height) throws IOException {
+        if (extract(gcode) != null) return gcode;
+
+        byte[] square = render(gcode, Math.max(width, height) * 2);
+        Bitmap source = BitmapFactory.decodeByteArray(square, 0, square.length);
+        if (source == null) return gcode;
+        Bitmap canvasBmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(canvasBmp);
+        canvas.drawColor(BACKGROUND);
+        int side = Math.min(width, height);
+        Bitmap fitted = Bitmap.createScaledBitmap(source, side, side, true);
+        canvas.drawBitmap(fitted, (width - side) / 2f, (height - side) / 2f, null);
+        ByteArrayOutputStream png = new ByteArrayOutputStream();
+        canvasBmp.compress(Bitmap.CompressFormat.PNG, 100, png);
+        source.recycle();
+        canvasBmp.recycle();
+        if (fitted != source) fitted.recycle();
+
+        String base64 = Base64.encodeToString(png.toByteArray(), Base64.NO_WRAP);
+        StringBuilder block = new StringBuilder();
+        block.append("; THUMBNAIL_BLOCK_START\n\n;\n; thumbnail begin ")
+                .append(width).append('x').append(height).append(' ').append(base64.length()).append('\n');
+        for (int i = 0; i < base64.length(); i += 78) {
+            block.append("; ").append(base64, i, Math.min(base64.length(), i + 78)).append('\n');
+        }
+        block.append("; thumbnail end\n; THUMBNAIL_BLOCK_END\n\n");
+
+        boolean inserted = false;
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(gcode), StandardCharsets.ISO_8859_1), 1 << 16);
+             java.io.Writer writer = new java.io.BufferedWriter(
+                     new java.io.OutputStreamWriter(new java.io.FileOutputStream(dest), StandardCharsets.ISO_8859_1), 1 << 16)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                writer.write(line);
+                writer.write('\n');
+                if (!inserted && line.startsWith("; HEADER_BLOCK_END")) {
+                    writer.write('\n');
+                    writer.write(block.toString());
+                    inserted = true;
+                }
+            }
+        }
+        if (!inserted) {
+            // No header block to anchor on: put it at the very top instead.
+            File tmp = new File(dest.getPath() + ".tmp");
+            try (java.io.InputStream in = new FileInputStream(dest);
+                 java.io.OutputStream out = new java.io.FileOutputStream(tmp)) {
+                out.write(block.toString().getBytes(StandardCharsets.ISO_8859_1));
+                byte[] buf = new byte[1 << 16];
+                int n;
+                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            }
+            if (!tmp.renameTo(dest)) throw new IOException("rename " + tmp);
+        }
+        return dest;
+    }
+
+    /**
      * Rasterises a top view of the extruding moves. Two passes: bounds, then draw.
      */
     public static byte[] render(File gcode, int size) {

@@ -91,30 +91,9 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
     private int skirt = 1;
     private int quality = 1;
     private int infill = 1;
-    private float scaleX = 100f;
-    private float scaleY = 100f;
-    private float scaleZ = 100f;
-    private float baseX = 100f;
-    private float baseY = 100f;
-    private float baseZ = 100f;
-    private float pendingX = 100f;
-    private float pendingY = 100f;
-    private float pendingZ = 100f;
-    private boolean scaleInMm;
-    private boolean scaleLocked = true;
-    private boolean syncing;
-    private int syncedObject = -1;
-    private float appliedX = 1f;
-    private float appliedY = 1f;
-    private float appliedZ = 1f;
-    private int editingAxis;
     private int tempC = 215;
     private float volumetric = 12f;
     private boolean tempFlowSeeded;
-    private final java.util.Map<Integer, float[]> partBase = new java.util.HashMap<>();
-    private final java.util.Map<Integer, float[]> partApplied = new java.util.HashMap<>();
-    private final TextView[] axisChips = new TextView[3];
-    private TextView valuesLabel;
     private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
 
     private boolean slicing;
@@ -388,9 +367,9 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         addRow(R.drawable.square_stack_up_outline_28,
                 ctx.getString(R.string.WizardBedCount, count), null, null, false);
 
-        // Scaling has its own screen (BedFragment.showScale) so it behaves like the tools menu.
+        // Same scale menu as the toolbar (TransformMenu.ScaleMenu): no scaling logic of our own.
         addIconButton(R.drawable.menu_scale_28, ctx.getString(R.string.WizardBedOpenScale),
-                v -> bed.showScale());
+                v -> ru.ytkab0bp.slicebeam.components.bed_menu.TransformMenu.showScaleMenu(bed, v));
         addIconButton(R.drawable.grid_layout_outline_28, ctx.getString(R.string.WizardBedArrange),
                 v -> bed.arrangePlate());
         addNote(ctx.getString(R.string.WizardBedGestureHint));
@@ -793,41 +772,6 @@ public class WizardOverlay extends FrameLayout implements IThemeView {
         bed.invalidateModel();
     }
 
-
-    /** Keeps the pending numbers in sync with the part whenever the step is shown. */
-    private void syncScaleValues(int index) {
-        Model model = bed.getCurrentModel();
-        float sx = 1f, sy = 1f, sz = 1f;
-        try {
-            if (model != null) {
-                ru.ytkab0bp.slicebeam.utils.Vec3d factor = new ru.ytkab0bp.slicebeam.utils.Vec3d();
-                model.getScale(index, factor);
-                sx = (float) Math.abs(factor.x);
-                sy = (float) Math.abs(factor.y);
-                sz = (float) Math.abs(factor.z);
-            }
-        } catch (Throwable ignored) {
-        }
-        appliedX = sx <= 0 ? 1f : sx;
-        appliedY = sy <= 0 ? 1f : sy;
-        appliedZ = sz <= 0 ? 1f : sz;
-
-        ru.ytkab0bp.slicebeam.utils.Vec3d min = new ru.ytkab0bp.slicebeam.utils.Vec3d();
-        ru.ytkab0bp.slicebeam.utils.Vec3d max = new ru.ytkab0bp.slicebeam.utils.Vec3d();
-        try {
-            if (model != null) {
-                model.getBoundingBoxExact(index, min, max);
-                baseX = (float) Math.max(0.001, (max.x - min.x) / appliedX);
-                baseY = (float) Math.max(0.001, (max.y - min.y) / appliedY);
-                baseZ = (float) Math.max(0.001, (max.z - min.z) / appliedZ);
-            }
-        } catch (Throwable ignored) {
-        }
-
-        pendingX = scaleInMm ? appliedX * baseX : appliedX * 100f;
-        pendingY = scaleInMm ? appliedY * baseY : appliedY * 100f;
-        pendingZ = scaleInMm ? appliedZ * baseZ : appliedZ * 100f;
-    }
 
     /**
      * NumberPicker paints its wheel with a colour taken from the platform theme, which on this

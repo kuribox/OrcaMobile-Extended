@@ -403,8 +403,6 @@
     <string name="WizardBedPieceSize">%1$d × %2$d × %3$d mm</string>
     <string name="WizardBedActions">Colocación</string>
     <string name="WizardBedArrange">Organizar</string>
-    <string name="WizardBedScale">Escalar todas las piezas</string>
-    <string name="WizardBedScaleValue">%1$d %%</string>
     <string name="WizardBedAddMore">Añadir otra pieza</string>
     <string name="WizardBedRealHint">Si prefieres moverlas con el dedo, sal del asistente: quedan colocadas en la cama y puedes usar la pestaña Vista con sus herramientas. Al volver, el asistente sigue donde lo dejaste.</string>
     <string name="WizardFilesTitle">Piezas</string>
@@ -413,7 +411,6 @@
     <string name="WizardFilesEmpty">Todavía no has elegido nada. Pulsa «Elegir archivos STL / 3MF».</string>
     <string name="WizardBedCount">Piezas en la cama: %1$d</string>
     <string name="WizardBedGestureHint">Arrastra para mover · dos dedos para girar · pellizca para acercar. Si quieres más control, sal del asistente y usa la pestaña Vista.</string>
-    <string name="WizardBedScaleApplied">Escala aplicada: %1$d %%</string>
     <string name="WizardBrimNoneShort">Ninguno</string>
     <string name="WizardBrimAutoShort">Automático</string>
     <string name="WizardBrimOuterShort">Exterior</string>
@@ -425,11 +422,7 @@
     <string name="WizardSliceFailed">No se pudo laminar: %1$s</string>
     <string name="WizardQualityNote">Más fina = mejor acabado y más tiempo. 0.20 es el equilibrio habitual.</string>
     <string name="WizardFinishNoSlice">Terminar sin laminar</string>
-    <string name="WizardScaleLockHint">Candado cerrado: X, Y y Z cambian juntos y la pieza no se deforma. Candado abierto: puedes cambiar una sola medida.</string>
     <string name="WizardRetrySlice">Reintentar</string>
-    <string name="WizardScaleSelectPart">Escalar: toca primero una pieza en la cama para seleccionarla; después podrás cambiar su tamaño por ejes.</string>
-    <string name="WizardScaleSelected">Vas a escalar la pieza %1$d</string>
-    <string name="WizardScaleApply">Aplicar</string>
     <string name="WizardQualityLow">Baja · 0.28</string>
     <string name="WizardQualityMedium">Media · 0.20</string>
     <string name="WizardQualityGood">Buena · 0.16</string>
@@ -451,14 +444,6 @@
     <string name="WizardTempFlowNote">Es el techo de material que la boquilla puede fundir por segundo. PLA sobre 12–21 mm³/s, PETG 10–15 mm³/s. 0 quita el límite (imprime tan rápido como permita el resto del perfil).</string>
     <string name="WizardFilamentMissing">No hay filamento activo. Vuelve al paso anterior y elige uno.</string>
     <string name="WizardTempFlowVolumetric">Velocidad volumétrica máxima</string>
-    <string name="ScaleTitle">Escalar</string>
     <string name="ScaleSelectPart">Toca una pieza en la cama para escalarla.</string>
-    <string name="ScaleRetry">Comprobar selección</string>
-    <string name="ScaleReset">Volver a 100 %</string>
-    <string name="ScaleDone">Listo</string>
-    <string name="ScaleAxisX">X</string>
-    <string name="ScaleAxisY">Y</string>
-    <string name="ScaleAxisZ">Z</string>
     <string name="WizardBedOpenScale">Escalar</string>
-    <string name="MenuFileScale">Escalar</string>
 </resources>

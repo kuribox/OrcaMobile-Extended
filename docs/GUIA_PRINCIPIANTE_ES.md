@@ -19,12 +19,8 @@ Puedes volver a pulsarlo para añadir más y quitar cualquiera con la **✕** de
 **Paso 2 · La cama.** El panel baja y deja ver la cama real. Arriba puedes **arrastrar** una pieza
 para moverla, **girarla con dos dedos** y **pellizcar** para acercar la vista. En el panel:
 
-- **Escalar (pantalla aparte)** — abre una pantalla con las tres barras X / Y / Z, iguales a las de
-  **Herramientas**. Toca la pieza antes: cada barra muestra el porcentaje y los milímetros resultantes,
-  y **Volver a 100 %** la deja como estaba.
+- **Escalar** — abre el mismo menú de escala de **Herramientas** (barras X / Y / Z). Toca la pieza antes.
 - **Organizar** — reparte las piezas sin que se solapen.
-
-También tienes **Escalar** en **Vista → Archivo**.
 
 **Paso 3 · Impresora.** Lista de perfiles de impresora; el que está en uso va resaltado.
 

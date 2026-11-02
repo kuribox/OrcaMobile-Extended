@@ -153,19 +153,11 @@ edits (`SliceBeam.LIVE_DIFF_PRINT`) and a finished slice stays in the viewer.
 | 7 · Temperature and volumetric speed | Nozzle temperature and maximum volumetric speed (the melt-rate ceiling; 0 removes it), the two filament values changed most often; written into the chosen filament profile and saved. |
 | 8 · Slice | Slicing starts on entering the step (no button), with a spinner, a 3-minute timeout and `Throwable` handling so an out-of-memory is an error message, not a frozen panel. The result loads through `BedFragment.loadGCode`, so the preview is the View tab's own, followed by send / send and print / download / share on their own row. |
 
-Scaling is its own screen (`ScaleOverlay`, opened from *View → File → Scale* or from the assistant),
-with the same transform maths as the tools menu (including the rotation and mirror compensation) but
-plain `SeekBar`s instead of the infinite scroller: three bars for X / Y / Z in percent of the size the
-screen opened with, each showing the resulting millimetres, a padlock for proportional scaling and
-*Back to 100 %*. The bar positions are deterministic — the old scroller bounced and its position ended up
-being read as a measurement, which is what made the part jump to a wrong size. The old wizard fields are
-gone: closed keeps the
-proportions — in mm the other axes follow the same ratio, they are not forced to the same millimetre
-value — open lets one dimension change. Nothing is applied until *Apply*, and the delta is computed against
-what the panel already applied — the engine caches object boxes, so re-reading them made every Apply
-multiply again or jump back to the original. After each change the meshes are invalidated
-(`BedFragment.invalidateModel`) so the plate repaints instead of waiting for the next gesture. Going back from the slice step drops the result, so changing
-anything and continuing slices again.
+The plate step has no scaling logic of its own: *Scale* opens the **tools menu's own scale menu**
+(`TransformMenu.showScaleMenu` → `TransformMenu.ScaleMenu`), the very same code as *View → Tools → Scale*, so
+both behave identically. Tap a part first. After each change the meshes are invalidated
+(`BedFragment.invalidateModel`) so the plate repaints. Going back from the slice step drops the result, so
+changing anything and continuing slices again.
 
 Implementation notes worth knowing before touching it: the panel is added to `BedFragment.overlayLayout`
 and only its bottom 46 % consumes touches, the rest falls through to the plate; `WizardOverlay` keeps the

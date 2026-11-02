@@ -14,6 +14,7 @@ import ru.ytkab0bp.slicebeam.recycler.PreferenceItem;
 import ru.ytkab0bp.slicebeam.recycler.SpaceItem;
 import ru.ytkab0bp.slicebeam.slic3r.PrintConfigDef;
 import ru.ytkab0bp.slicebeam.slic3r.Slic3rLocalization;
+import ru.ytkab0bp.slicebeam.slic3r.ConfigOptionDef;
 import ru.ytkab0bp.slicebeam.utils.FlashforgeDiscovery;
 import ru.ytkab0bp.slicebeam.utils.ViewUtils;
 
@@ -219,6 +220,27 @@ public class PrinterConfigFragment extends ProfileListFragment {
         list.add(new OptionElement(hostTestItem()));
 
         return list;
+    }
+
+    /**
+     * The item list is built once, so the Flashforge-only discovery button never appeared after
+     * picking the host type: rebuild it whenever the type changes.
+     */
+    @Override
+    protected void updateConfigField(ConfigOptionDef def, int i, String value) {
+        super.updateConfigField(def, i, value);
+        if (def != null && "host_type".equals(def.key)) {
+            onUpdateConfigItems();
+        }
+    }
+
+    @Override
+    protected void onUpdateConfigItems() {
+        if (recyclerView == null || currentConfig == null) {
+            super.onUpdateConfigItems();
+            return;
+        }
+        setConfigItems(getConfigItems());
     }
 
     /** Fills print_host and flashforge_serial_number from the LAN, like the desktop dialog. */

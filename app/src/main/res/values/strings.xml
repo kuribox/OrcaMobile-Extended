@@ -403,8 +403,6 @@
     <string name="WizardBedPieceSize">%1$d × %2$d × %3$d mm</string>
     <string name="WizardBedActions">Placement</string>
     <string name="WizardBedArrange">Arrange</string>
-    <string name="WizardBedScale">Scale every part</string>
-    <string name="WizardBedScaleValue">%1$d %%</string>
     <string name="WizardBedAddMore">Add another part</string>
     <string name="WizardBedRealHint">To move parts by hand, leave the assistant: they stay on the plate and you can use the View tab and its tools. When you come back, the assistant continues where you left it.</string>
     <string name="WizardFilesTitle">Parts</string>
@@ -413,7 +411,6 @@
     <string name="WizardFilesEmpty">Nothing chosen yet. Tap “Choose STL / 3MF files”.</string>
     <string name="WizardBedCount">Parts on the plate: %1$d</string>
     <string name="WizardBedGestureHint">Drag to move · two fingers to rotate · pinch to zoom. For finer control, leave the assistant and use the View tab.</string>
-    <string name="WizardBedScaleApplied">Scale applied: %1$d %%</string>
     <string name="WizardBrimNoneShort">None</string>
     <string name="WizardBrimAutoShort">Automatic</string>
     <string name="WizardBrimOuterShort">Outer</string>
@@ -425,11 +422,7 @@
     <string name="WizardSliceFailed">Could not slice: %1$s</string>
     <string name="WizardQualityNote">Thinner means a better finish and more time. 0.20 is the usual balance.</string>
     <string name="WizardFinishNoSlice">Finish without slicing</string>
-    <string name="WizardScaleLockHint">Padlock closed: X, Y and Z change together, so the part keeps its shape. Padlock open: you can change one dimension only.</string>
     <string name="WizardRetrySlice">Retry</string>
-    <string name="WizardScaleSelectPart">Scaling: tap a part on the plate to select it first, then change its size per axis.</string>
-    <string name="WizardScaleSelected">Scaling part %1$d</string>
-    <string name="WizardScaleApply">Apply</string>
     <string name="WizardQualityLow">Low · 0.28</string>
     <string name="WizardQualityMedium">Medium · 0.20</string>
     <string name="WizardQualityGood">Good · 0.16</string>
@@ -451,14 +444,6 @@
     <string name="WizardTempFlowNote">It caps how much material the nozzle can melt per second. PLA around 12–21 mm³/s, PETG 10–15 mm³/s. 0 removes the limit and prints as fast as the rest of the profile allows.</string>
     <string name="WizardFilamentMissing">No active filament. Go back one step and pick one.</string>
     <string name="WizardTempFlowVolumetric">Maximum volumetric speed</string>
-    <string name="ScaleTitle">Scale</string>
     <string name="ScaleSelectPart">Tap a part on the plate to scale it.</string>
-    <string name="ScaleRetry">Check selection</string>
-    <string name="ScaleReset">Back to 100 %</string>
-    <string name="ScaleDone">Done</string>
-    <string name="ScaleAxisX">X</string>
-    <string name="ScaleAxisY">Y</string>
-    <string name="ScaleAxisZ">Z</string>
     <string name="WizardBedOpenScale">Scale</string>
-    <string name="MenuFileScale">Scale</string>
 </resources>

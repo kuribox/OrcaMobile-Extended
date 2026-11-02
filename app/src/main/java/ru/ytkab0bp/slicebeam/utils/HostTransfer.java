@@ -48,7 +48,16 @@ public final class HostTransfer {
         if (gcode == null || !gcode.isFile()) {
             throw new IllegalStateException("no sliced gcode");
         }
-        if (!use3mf) return gcode;
+        if (!use3mf) {
+            // Plain G-code has no preview unless it carries a thumbnail block (the engine writes none).
+            try {
+                File withThumb = new File(SliceBeam.INSTANCE.getCacheDir(),
+                        "export_" + System.currentTimeMillis() + ".gcode");
+                return GCodeThumbnail.withEmbeddedThumbnail(gcode, withThumb, 140, 110);
+            } catch (Throwable t) {
+                return gcode;
+            }
+        }
 
         File dest = new File(SliceBeam.INSTANCE.getCacheDir(),
                 "export_" + System.currentTimeMillis() + ".gcode.3mf");

@@ -70,7 +70,6 @@ public class BedFragment extends Fragment {
 
     private FrameLayout overlayLayout;
     private ru.ytkab0bp.slicebeam.view.WizardOverlay wizardOverlay;
-    private ru.ytkab0bp.slicebeam.view.ScaleOverlay scaleOverlay;
     private SnackbarsLayout snackbarsLayout;
     private GLView glView;
     private NavigationBarView navigationView;
@@ -343,22 +342,6 @@ public class BedFragment extends Fragment {
         wizardOverlay = new ru.ytkab0bp.slicebeam.view.WizardOverlay(this);
         overlayLayout.addView(wizardOverlay, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-    }
-
-    /** Standalone scaling screen, same tracks and maths as the tools menu. */
-    public void showScale() {
-        if (scaleOverlay != null || overlayLayout == null) return;
-        // The assistant stays behind: closing the scale screen returns to the same step.
-        scaleOverlay = new ru.ytkab0bp.slicebeam.view.ScaleOverlay(this);
-        overlayLayout.addView(scaleOverlay, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-    }
-
-    public void dismissScale() {
-        if (scaleOverlay != null) {
-            overlayLayout.removeView(scaleOverlay);
-            scaleOverlay = null;
-        }
     }
 
     public int getSelectedObjectIndex() {
